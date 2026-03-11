@@ -1,198 +1,358 @@
 "use client"
 
 import { useState } from "react"
-import { Search, MoreHorizontal, Calendar, Clock, User, Filter, ArrowUpRight } from "lucide-react"
+import { Search, Filter, Calendar as CalendarIcon, Clock, User, CheckCircle2, XCircle, CalendarClock, AlertTriangle, ArrowRight, Activity, CalendarCheck, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { StatCard } from "@/components/shared/StatCard"
 
-// Mock data for appointments
+// Mock data strictly supporting scheduling workflows
 const appointments = [
   {
     id: "APP001",
     patientName: "Sarah Johnson",
-    doctorName: "Dr. Sarah Johnson",
-    date: "Jan 20, 2024",
+    doctorName: "Dr. Emily Taylor",
+    dateGroup: "Today",
     time: "10:00 AM",
-    status: "Scheduled",
-    type: "Regular Checkup",
+    status: "Scheduled", 
+    type: "General Checkup",
+    doctorStatus: "Available",
+    doctorWorkload: "4 appts today",
+    isLive: true,
   },
   {
     id: "APP002",
     patientName: "Jude Billingham",
     doctorName: "Dr. Michael Chen",
-    date: "Jan 20, 2024",
+    dateGroup: "Today",
     time: "11:30 AM",
-    status: "Completed",
+    status: "Completed", 
     type: "Cardiology",
-  },
-  {
-    id: "APP003",
-    patientName: "Leslie Alexander",
-    doctorName: "Dr. Emily Taylor",
-    date: "Jan 21, 2024",
-    time: "09:00 AM",
-    status: "Cancelled",
-    type: "Pediatrics",
-  },
-  {
-    id: "APP004",
-    patientName: "John Doe",
-    doctorName: "Dr. James Wilson",
-    date: "Jan 21, 2024",
-    time: "02:00 PM",
-    status: "Scheduled",
-    type: "Orthopedics",
+    doctorStatus: "Available",
+    doctorWorkload: "5 appts today",
   },
   {
     id: "APP005",
     patientName: "Emma Wilson",
     doctorName: "Dr. Lisa Wang",
-    date: "Jan 22, 2024",
+    dateGroup: "Today",
     time: "04:30 PM",
-    status: "Pending",
+    status: "Pending", 
     type: "Dermatology",
+    doctorStatus: "Conflict",
+    conflictReason: "Overlapping Surgery (4:00 PM)",
+    doctorWorkload: "Fully booked",
   },
-]
+  {
+    id: "APP003",
+    patientName: "Leslie Alexander",
+    doctorName: "Dr. Emily Taylor",
+    dateGroup: "Tomorrow",
+    time: "09:00 AM",
+    status: "Cancelled", 
+    type: "Pediatrics",
+    doctorStatus: "Available",
+    doctorWorkload: "3 appts tomorrow",
+  },
+  {
+    id: "APP004",
+    patientName: "John Doe",
+    doctorName: "Dr. James Wilson",
+    dateGroup: "Upcoming",
+    dateStr: "Jan 25, 2024",
+    time: "02:00 PM",
+    status: "Scheduled", 
+    type: "Orthopedics",
+    doctorStatus: "Available",
+    doctorWorkload: "1 appt",
+  },
+];
+
+const getPatientAvatarTint = (name: string) => {
+  const styles = [
+    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300",
+    "bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300",
+    "bg-slate-100 text-slate-800 dark:bg-slate-800/50 dark:text-slate-300",
+  ];
+  return styles[name.charCodeAt(0) % styles.length];
+};
 
 export default function AdminAppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [activeFilter, setActiveFilter] = useState("All")
 
-  const filteredAppointments = appointments.filter((appointment) =>
-    appointment.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    appointment.doctorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    appointment.id.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  let filtered = appointments.filter((apt) =>
+    apt.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    apt.doctorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    apt.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (activeFilter === "Today") {
+    filtered = filtered.filter(a => a.dateGroup === "Today");
+  } else if (activeFilter === "Upcoming") {
+    filtered = filtered.filter(a => a.dateGroup === "Tomorrow" || a.dateGroup === "Upcoming");
+  } else if (activeFilter === "Conflicts") {
+    filtered = filtered.filter(a => a.doctorStatus === "Conflict");
+  }
+
+  const grouped = filtered.reduce((acc, apt) => {
+    if (!acc[apt.dateGroup]) acc[apt.dateGroup] = [];
+    acc[apt.dateGroup].push(apt);
+    return acc;
+  }, {} as Record<string, typeof appointments>);
 
   return (
-    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-8 animate-in fade-in zoom-in-95 duration-700 max-w-[1600px] mx-auto pb-10">
+      
+      {/* 1. Page Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">Appointments Management</h1>
-          <p className="text-sm text-slate-500 mt-1">Review and manage all hospital appointments across various departments.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            Appointment Schedule
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5">
+            Manage time slots, resolve scheduling conflicts, and oversee daily workflows.
+          </p>
+        </div>
+        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 hover:-translate-y-0.5 transition-all text-sm px-5 py-2.5 h-auto">
+          <CalendarIcon className="mr-2 h-4 w-4" /> Book Appointment
+        </Button>
+      </div>
+
+      {/* 2. Top Priorities & Workflow Insights */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard
+          title="Upcoming Today"
+          value={appointments.filter(a => a.dateGroup === "Today" && a.status === "Scheduled").length}
+          icon={CalendarCheck}
+          color="teal"
+          trend="neutral"
+          trendValue="On schedule"
+        />
+        <StatCard
+          title="Action Needed"
+          value={appointments.filter(a => a.doctorStatus === "Conflict" || a.status === "Pending").length}
+          icon={AlertTriangle}
+          color="amber"
+          trend="down"
+          trendValue="Requires attention"
+        />
+        <StatCard
+          title="Completed"
+          value={appointments.filter(a => a.status === "Completed").length}
+          icon={CheckCircle}
+          color="teal"
+          trend="up"
+          trendValue="Smooth operations"
+        />
+        
+        {/* Harmonized Soft Green "Next Available Slot" Card instead of Dark Blue */}
+        <div className="bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/20 p-5 rounded-[20px] border border-emerald-200/60 dark:border-emerald-800/50 shadow-sm flex flex-col justify-between transition-all hover:shadow-md hover:-translate-y-1">
+          <div className="flex items-center justify-between">
+             <p className="text-sm font-semibold text-teal-800 dark:text-teal-400">Next Available Slot</p>
+             <Clock className="w-4 h-4 text-teal-600 dark:text-teal-500" />
+          </div>
+          <div className="mt-2">
+            <p className="text-3xl font-extrabold text-teal-900 dark:text-teal-100 tracking-tight">12:30 PM</p>
+            <p className="text-xs font-medium text-teal-700 dark:text-teal-500 mt-1">Dr. Smith - Gen. Checkup</p>
+          </div>
+          <Button variant="secondary" size="sm" className="mt-4 bg-white/70 hover:bg-white text-teal-800 border-0 shadow-sm transition-colors text-xs font-bold uppercase tracking-wider">
+            Fill Slot <ArrowRight className="ml-2 h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
 
-      <div className="glass-panel p-4 rounded-2xl">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      {/* 3. Advanced Filtering & Control Bar */}
+      <div className="flex flex-col gap-4 bg-white dark:bg-slate-800/80 p-4 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-700/50">
+        
+        {/* Quick Filters Row */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          <span className="text-xs font-semibold uppercase tracking-widest text-slate-400 mr-2 shrink-0">Views</span>
+          {["All", "Today", "Upcoming", "Conflicts"].map(filter => (
+             <Button 
+                key={filter}
+                variant={activeFilter === filter ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveFilter(filter)}
+                className={`rounded-full h-8 px-4 text-xs font-semibold transition-all ${
+                  activeFilter === filter 
+                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-none shadow-sm dark:bg-emerald-900/60 dark:text-emerald-300" 
+                    : "border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800"
+                }`}
+             >
+                {filter} {filter === "Conflicts" && <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
+             </Button>
+          ))}
+        </div>
+
+        <div className="h-px w-full bg-slate-100 dark:bg-slate-700/50" />
+
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="relative flex-1 w-full md:max-w-md group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
             <Input
-              placeholder="Search by ID, Patient or Doctor..."
-              className="pl-10 h-11 bg-white/50 border-slate-200 focus-visible:ring-primary"
+              placeholder="Search by Patient, Doctor, or ID..."
+              className="pl-11 h-11 bg-slate-50/50 hover:bg-slate-100/50 border-slate-200/60 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500 shadow-inner rounded-xl transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="h-11">
-            <Filter className="mr-2 h-4 w-4" /> Filter
-          </Button>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-          <Table>
-            <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
-              <TableRow>
-                <TableHead>Appointment ID</TableHead>
-                <TableHead>Patient</TableHead>
-                <TableHead>Doctor</TableHead>
-                <TableHead>Date & Time</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAppointments.map((appointment) => (
-                <TableRow key={appointment.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                  <TableCell className="font-medium text-slate-500">#{appointment.id}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs">
-                        {appointment.patientName.charAt(0)}
-                      </div>
-                      <span className="font-semibold text-slate-800 dark:text-slate-100">{appointment.patientName}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-primary" />
-                      <span className="text-sm">{appointment.doctorName}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-                        <Calendar className="h-3 w-3" /> {appointment.date}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-                        <Clock className="h-3 w-3" /> {appointment.time}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-slate-600 dark:text-slate-400">{appointment.type}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      appointment.status === "Scheduled" 
-                        ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20" 
-                        : appointment.status === "Completed"
-                        ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20"
-                        : appointment.status === "Cancelled"
-                        ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20"
-                        : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-500/20"
-                    }`}>
-                      {appointment.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      {/* @ts-ignore */}
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit Meeting Slot</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>Mark as Completed</DropdownMenuItem>
-                        <DropdownMenuItem className="text-rose-500">Cancel Appointment</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredAppointments.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-slate-400">
-                    No matching appointments found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <Button variant="outline" className="h-11 px-4 rounded-xl border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 shadow-sm text-slate-600 dark:text-slate-300 font-medium">
+              <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" /> Jan 20 - Jan 26
+            </Button>
+            <select className="h-11 px-4 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-emerald-500/30 focus:border-emerald-500 outline-none cursor-pointer hidden lg:block shadow-sm text-slate-600 dark:text-slate-300 font-medium">
+              <option value="">Status: All</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+            </select>
+            <Button variant="outline" className="h-11 px-5 rounded-xl border-slate-200 hover:bg-slate-50 dark:border-slate-700 shadow-sm hidden sm:flex">
+              <Filter className="mr-2 h-4 w-4 text-slate-500" /> Filter
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* 4. Time-Based Grouped Layout (The Core Redesign) */}
+      <div className="space-y-10">
+        {["Today", "Tomorrow", "Upcoming"].map((groupName) => {
+          const groupAppointments = grouped[groupName];
+          if (!groupAppointments || groupAppointments.length === 0) return null;
+
+          return (
+            <div key={groupName} className="space-y-4">
+              {/* Timeline Group Header */}
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  {groupName === "Today" && <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />}
+                  {groupName === "Tomorrow" && <span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600" />}
+                  {groupName === "Upcoming" && <span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600" />}
+                  {groupName}
+                </h2>
+                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{groupAppointments.length} Appointments</span>
+              </div>
+
+              {/* Time-block Cards */}
+              <div className="grid gap-4">
+                {groupAppointments.map((apt) => {
+                  const isCompleted = apt.status === "Completed";
+                  const isConflict = apt.doctorStatus === "Conflict";
+                  const isLive = apt.isLive;
+
+                  return (
+                    <div 
+                      key={apt.id} 
+                      className={`group relative flex flex-col lg:flex-row lg:items-center gap-5 p-4 lg:p-6 rounded-2xl border bg-white dark:bg-slate-800/90 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
+                        isCompleted ? "opacity-50 grayscale-[0.2] hover:grayscale-0 hover:opacity-100 bg-slate-50/50 dark:bg-slate-900/50" : ""
+                      } ${
+                        isConflict ? "border-amber-400 dark:border-amber-600/60 shadow-amber-500/10" : isLive ? "border-emerald-300 dark:border-emerald-600/50 shadow-emerald-500/10 ring-1 ring-emerald-500/10" : "border-slate-100 dark:border-slate-700/50"
+                      }`}
+                    >
+                      {/* Sub-bg highlight for Live / Next slot */}
+                      {isLive && (
+                        <div className="absolute inset-0 bg-emerald-50/30 dark:bg-emerald-900/10 rounded-2xl pointer-events-none" />
+                      )}
+                      {/* Conflict background tint */}
+                      {isConflict && (
+                        <div className="absolute inset-0 bg-amber-50/40 dark:bg-amber-900/10 rounded-2xl pointer-events-none" />
+                      )}
+
+                      {/* Time Marker (Primary Anchor) */}
+                      <div className="w-32 shrink-0 flex flex-col relative z-10">
+                        <span className={`text-[22px] font-black tracking-tight ${isLive ? "text-emerald-600 dark:text-emerald-400" : isConflict ? "text-amber-600 dark:text-amber-400" : "text-slate-800 dark:text-slate-100"}`}>{apt.time}</span>
+                        {apt.dateStr && <span className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">{apt.dateStr}</span>}
+                        {isLive && (
+                          <span className="mt-2 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-500/20 py-1 px-2 rounded-md w-max animate-pulse">
+                            <Activity className="w-3 h-3" /> Live Now
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Line Separator (Desktop) */}
+                      <div className="hidden lg:block w-px h-16 bg-slate-100 dark:bg-slate-700/80 mx-2 relative z-10" />
+
+                      {/* Main Info Box */}
+                      <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                        {/* Patient (Bold) */}
+                        <div className="flex items-center gap-4">
+                          <Avatar className={`h-12 w-12 border-2 border-white dark:border-slate-800 shadow-sm ${getPatientAvatarTint(apt.patientName)}`}>
+                            <AvatarFallback className="font-extrabold text-sm bg-transparent">
+                              {apt.patientName.split(" ").map(n => n[0]).join("").substring(0,2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-base truncate flex items-center gap-2">
+                              {apt.patientName}
+                            </h4>
+                            <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider truncate bg-slate-100 dark:bg-slate-800 w-max px-2 py-0.5 rounded-md">{apt.type}</p>
+                          </div>
+                        </div>
+
+                        {/* Doctor Details (Secondary) with Workload indicator */}
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-700/50 border border-slate-100 dark:border-slate-700 flex items-center justify-center shrink-0">
+                            <User className="h-5 w-5 text-slate-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="font-semibold text-slate-700 dark:text-slate-300 text-sm truncate">{apt.doctorName}</h4>
+                            {isConflict ? (
+                               <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mt-1 flex items-center gap-1.5 animate-pulse"><AlertTriangle className="h-3.5 w-3.5" /> {apt.conflictReason}</p>
+                            ) : (
+                               <div className="flex items-center gap-2 mt-1">
+                                 <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Available</p>
+                                 <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                 <p className="text-[11px] text-slate-400 font-semibold">{apt.doctorWorkload}</p>
+                               </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status Badge */}
+                      <div className="w-32 shrink-0 relative z-10 flex lg:justify-center">
+                        <span className={`inline-flex items-center justify-center w-full max-w-[120px] px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest uppercase shadow-sm border transition-colors ${
+                          apt.status === "Scheduled" ? "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 border-teal-200 dark:border-teal-800/50" :
+                          apt.status === "Completed" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50" :
+                          apt.status === "Pending"   ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border-amber-300 dark:border-amber-700/60" :
+                          "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800/50" // Cancelled
+                        }`}>
+                          {apt.status}
+                        </span>
+                      </div>
+
+                      {/* Prominent Action Hierarchy */}
+                      <div className="flex items-center justify-end gap-2 lg:w-48 xl:w-56 shrink-0 relative z-10">
+                         {apt.status !== "Completed" && apt.status !== "Cancelled" && (
+                           <>
+                              {/* Primary Action Button */}
+                              <Button size="sm" className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all">
+                                <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                                Confirm
+                              </Button>
+                              
+                              {/* Secondary Actions (Icons) */}
+                              <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all active:scale-95" title="Reschedule">
+                                <CalendarClock className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all active:scale-95" title="Cancel">
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                           </>
+                         )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
     </div>
   )
 }
