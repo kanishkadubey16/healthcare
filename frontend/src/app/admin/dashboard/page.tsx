@@ -3,8 +3,46 @@
 import { Download, ArrowUp, Users, DollarSign, ChevronRight, AlertTriangle, CalendarCheck, Sparkles, TrendingUp, UserPlus, FileText, Clock, Bell, CheckCircle2, MoreVertical, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { adminDashboardService } from "@/services/adminDashboard.service";
+import { useEffect, useState } from "react";
 
+interface DashboardData {
+  revenue: number;
+  patients: number;
+  doctors: number;
+  alerts: any[];
+  traffic: any[];
+  appointments: any[];
+}
 export default function AdminDashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const res = await adminDashboardService.getDashboard();
+        setData(res);
+      } catch (err: any) {
+        setError("Failed to load dashboard");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  /* ✅ Loading */
+  if (loading) return <div className="p-6">Loading...</div>;
+
+  /* ✅ Error */
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
+
+  if (!data) return null;
+
+
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-700 max-w-[1600px] mx-auto pb-12">
 
@@ -19,14 +57,14 @@ export default function AdminDashboardPage() {
             Real-time analytics, hospital throughput, and high-priority administrative tasks.
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        {/* <div className="flex items-center gap-4">
           <Button variant="outline" className="h-11 px-5 rounded-xl border-slate-200 text-slate-600 bg-white dark:bg-slate-800/80 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 shadow-sm transition-all active:scale-95 font-semibold group">
             <Download className="mr-2 h-4 w-4 group-hover:-translate-y-0.5 transition-transform" /> Export Data
           </Button>
           <Button className="h-11 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all active:scale-95 font-bold tracking-wide flex items-center group">
             <FileText className="mr-2 h-4 w-4 group-hover:scale-110 transition-transform" /> Generate Report
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {/* 2. Critical Insight / Alert Bar */}
@@ -72,7 +110,7 @@ export default function AdminDashboardPage() {
 
           <div className="relative z-10 flex items-end justify-between">
             <div>
-              <p className="text-6xl font-black mb-3 tracking-tighter drop-shadow-xl text-transparent bg-clip-text bg-gradient-to-br from-white to-emerald-100">$84,520</p>
+              <p className="text-6xl font-black mb-3 tracking-tighter drop-shadow-xl text-transparent bg-clip-text bg-gradient-to-br from-white to-emerald-100">₹ {data.revenue.toLocaleString("en-IN")}</p>
               <div className="flex items-center text-xs font-bold text-emerald-50 bg-black/20 w-max px-3 py-1.5 rounded-xl backdrop-blur-md border border-white/10 shadow-sm">
                 <TrendingUp className="h-3.5 w-3.5 mr-1.5 text-emerald-400" />
                 <span>+12.5% projected vs last month</span>
@@ -106,10 +144,10 @@ export default function AdminDashboardPage() {
           <div className="relative z-10">
             <h3 className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-xs mb-1">Total Patients</h3>
             <div className="flex items-end gap-3 mb-2">
-              <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">1,234</p>
-              <span className="mb-1 text-sm font-bold text-sky-600 flex items-center bg-sky-50 px-2 py-0.5 rounded-md"><ArrowUp className="w-3 h-3 mr-1" /> 4%</span>
+              <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">{data.patients.toLocaleString("en-IN")}</p>
+              {/* <span className="mb-1 text-sm font-bold text-sky-600 flex items-center bg-sky-50 px-2 py-0.5 rounded-md"><ArrowUp className="w-3 h-3 mr-1" /> 4%</span> */}
             </div>
-            <p className="text-xs font-semibold text-slate-400">Peak hour: 10:00 AM</p>
+            {/* <p className="text-xs font-semibold text-slate-400">Peak hour: 10:00 AM</p> */}
           </div>
         </div>
 
@@ -131,17 +169,17 @@ export default function AdminDashboardPage() {
           <div className="relative z-10">
             <h3 className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-xs mb-1">Active Doctors</h3>
             <div className="flex items-end gap-3 mb-2">
-              <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">45</p>
+              <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">{data.doctors.toLocaleString("en-IN")}</p>
               <p className="mb-1 text-sm font-bold text-slate-500 flex items-center">/ 50 limit</p>
             </div>
-            <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Optimal Coverage</p>
+            {/* <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Optimal Coverage</p> */}
           </div>
         </div>
 
       </div>
 
       {/* 4. Priority Tasks Bar */}
-      <div className="bg-white dark:bg-slate-800/80 rounded-3xl border border-slate-200/60 dark:border-slate-700/50 p-3 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+      {/* <div className="bg-white dark:bg-slate-800/80 rounded-3xl border border-slate-200/60 dark:border-slate-700/50 p-3 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
         <div className="flex items-center gap-3 px-4 py-2 text-sm font-black text-slate-800 dark:text-slate-100 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-700 w-full md:w-auto uppercase tracking-wider">
           <ShieldAlert className="h-5 w-5 text-emerald-500" /> Priority Tasks
         </div>
@@ -159,7 +197,7 @@ export default function AdminDashboardPage() {
         <Button variant="ghost" className="text-emerald-600 shrink-0 pr-4 text-xs font-bold hover:bg-transparent hover:text-emerald-800">
           View Task Portal &rarr;
         </Button>
-      </div>
+      </div> */}
 
       {/* 5. Chart + Timeline Row */}
       <div className="grid gap-6 lg:grid-cols-12 pt-2">
@@ -290,3 +328,222 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+
+// "use client";
+
+// import { useEffect, useState } from "react";
+// import {
+//   Download,
+//   DollarSign,
+//   AlertTriangle,
+//   FileText,
+// } from "lucide-react";
+// import { Button } from "@/components/ui/button";
+
+// /* ✅ Strong typing */
+// interface DashboardData {
+//   revenue: number;
+//   patients: number;
+//   doctors: number;
+//   alerts: { id: string; message: string; type: string }[];
+//   traffic: { id: string; day: string; patientCount: number }[];
+//   appointments: {
+//     id: string;
+//     patientName: string;
+//     type: string;
+//     time: string;
+//     status: string;
+//   }[];
+// }
+
+// export default function AdminDashboardPage() {
+//   const [data, setData] = useState<DashboardData | null>(null);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState<string | null>(null);
+
+//   /* ✅ API URL (better practice) */
+//   const API_URL =
+//     process.env.NEXT_PUBLIC_API_URL ||
+//     "http://localhost:5001";
+
+//   useEffect(() => {
+//     const fetchDashboard = async () => {
+//       try {
+//         const res = await fetch(
+//           `${API_URL}/api/admin/dashboard`
+//         );
+
+//         if (!res.ok) {
+//           throw new Error("Failed to fetch dashboard");
+//         }
+
+//         const result: DashboardData = await res.json();
+//         setData(result);
+//       } catch (err: any) {
+//         setError(err.message);
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+
+//     fetchDashboard();
+//   }, [API_URL]);
+
+//   /* ✅ Loading State */
+//   if (loading)
+//     return (
+//       <div className="p-6 text-lg font-semibold">
+//         Loading dashboard...
+//       </div>
+//     );
+
+//   /* ✅ Error State */
+//   if (error)
+//     return (
+//       <div className="p-6 text-red-500">
+//         {error}
+//       </div>
+//     );
+
+//   /* ✅ Safety check */
+//   if (!data) return null;
+
+//   return (
+//     <div className="space-y-8 max-w-[1600px] mx-auto pb-12">
+
+//       {/* Header */}
+//       <div className="flex justify-between items-center">
+//         <div>
+//           <h1 className="text-4xl font-black">
+//             Control Center
+//           </h1>
+//           <p className="text-slate-500 mt-2">
+//             Real-time analytics and administrative tasks
+//           </p>
+//         </div>
+
+//         <div className="flex gap-4">
+//           <Button variant="outline">
+//             <Download className="mr-2 h-4 w-4" />
+//             Export
+//           </Button>
+//           <Button>
+//             <FileText className="mr-2 h-4 w-4" />
+//             Report
+//           </Button>
+//         </div>
+//       </div>
+
+//       {/* Alert */}
+//       <div className="bg-rose-50 border p-4 rounded-xl flex justify-between">
+//         <div className="flex gap-3 items-center">
+//           <AlertTriangle className="text-rose-500" />
+//           <div>
+//             <h4 className="font-bold">
+//               Immediate Action Required
+//             </h4>
+//             <p>
+//               {data.alerts?.[0]?.message ||
+//                 "No alerts available"}
+//             </p>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* KPI Cards */}
+//       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+//         {/* Revenue */}
+//         <div className="p-6 bg-emerald-600 text-white rounded-xl">
+//           <h3 className="font-bold flex items-center gap-2">
+//             <DollarSign /> Revenue
+//           </h3>
+//           <p className="text-3xl mt-2">
+//             ${data.revenue.toLocaleString()}
+//           </p>
+//         </div>
+
+//         {/* Patients */}
+//         <div className="p-6 bg-white rounded-xl shadow">
+//           <h3 className="text-slate-500">
+//             Total Patients
+//           </h3>
+//           <p className="text-3xl font-bold">
+//             {data.patients.toLocaleString()}
+//           </p>
+//         </div>
+
+//         {/* Doctors */}
+//         <div className="p-6 bg-white rounded-xl shadow">
+//           <h3 className="text-slate-500">
+//             Active Doctors
+//           </h3>
+//           <p className="text-3xl font-bold">
+//             {data.doctors}
+//           </p>
+//         </div>
+//       </div>
+
+//       {/* Traffic Chart */}
+//       <div className="p-6 bg-white rounded-xl shadow">
+//         <h3 className="font-bold mb-4">
+//           Traffic Density
+//         </h3>
+
+//         <div className="flex items-end gap-2 h-40">
+//           {data.traffic?.map((item) => (
+//             <div
+//               key={item.id}
+//               className="flex flex-col items-center"
+//             >
+//               <div
+//                 className="w-6 bg-emerald-500 rounded"
+//                 style={{
+//                   height: `${item.patientCount}%`,
+//                 }}
+//               />
+//               <span className="text-xs mt-1">
+//                 {item.day}
+//               </span>
+//             </div>
+//           ))}
+//         </div>
+//       </div>
+
+//       {/* Appointments */}
+//       <div className="p-6 bg-white rounded-xl shadow">
+//         <h3 className="font-bold mb-4">
+//           Upcoming Pipeline
+//         </h3>
+
+//         {data.appointments?.map((patient) => (
+//           <div
+//             key={patient.id}
+//             className="flex justify-between border-b py-2"
+//           >
+//             <div>
+//               <p className="font-semibold">
+//                 {patient.patientName}
+//               </p>
+//               <p className="text-sm text-slate-500">
+//                 {patient.type}
+//               </p>
+//             </div>
+
+//             <div>
+//               {patient.status === "active" ? (
+//                 <span className="text-green-600 font-bold">
+//                   LIVE
+//                 </span>
+//               ) : (
+//                 <span>{patient.time}</span>
+//               )}
+//             </div>
+//           </div>
+//         ))}
+//       </div>
+
+//     </div>
+//   );
+// }

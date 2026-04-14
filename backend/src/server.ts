@@ -5,6 +5,7 @@ import { authRouter } from "./routes/auth.routes";
 import { adminRouter } from "./routes/admin.routes";
 import { seedDefaultUsers } from "./models/user.model";
 import { prisma } from "./lib/prisma";
+import dashboardRoutes from "./routes/dashboard.routes";
 
 const app = express();
 
@@ -16,12 +17,13 @@ app.use(express.json());
 
 app.use("/api", authRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/admin", dashboardRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "OK", message: "Healthcare API is running" });
 });
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {

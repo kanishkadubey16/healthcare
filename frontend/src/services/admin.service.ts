@@ -13,7 +13,7 @@ export const adminService = {
     const { data } = await api.get(`/doctors?${params.toString()}`);
     return data;
   },
-  
+
   createDoctor: async (doctorData: Record<string, unknown>) => {
     const { data } = await api.post('/doctors', doctorData);
     return data;
