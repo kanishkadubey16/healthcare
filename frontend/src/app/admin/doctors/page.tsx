@@ -1,69 +1,27 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Search, Filter, Mail, Phone, Users, UserCheck, UserX, Eye, Edit, Trash2 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Plus, Search, Filter, Mail, Phone, Users, UserCheck, UserX, Eye, Edit, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { StatCard } from "@/components/shared/StatCard"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { adminService } from "@/services/admin.service"
 
-// Mock data for doctors
-const doctors = [
-  {
-    id: "DR001",
-    name: "Dr. Sarah Johnson",
-    specialization: "Cardiology",
-    email: "sarah.j@mediso.com",
-    phone: "+1 (555) 001-2233",
-    experience: "12 years",
-    status: "Active",
-    image: "/avatars/doctor-1.png",
-  },
-  {
-    id: "DR002",
-    name: "Dr. Michael Chen",
-    specialization: "Neurology",
-    email: "m.chen@mediso.com",
-    phone: "+1 (555) 001-4455",
-    experience: "8 years",
-    status: "Active",
-    image: "/avatars/doctor-2.png",
-  },
-  {
-    id: "DR003",
-    name: "Dr. Emily Taylor",
-    specialization: "Pediatrics",
-    email: "e.taylor@mediso.com",
-    phone: "+1 (555) 001-6677",
-    experience: "15 years",
-    status: "On Leave",
-    image: "/avatars/doctor-3.png",
-  },
-  {
-    id: "DR004",
-    name: "Dr. James Wilson",
-    specialization: "Orthopedics",
-    email: "j.wilson@mediso.com",
-    phone: "+1 (555) 001-8899",
-    experience: "10 years",
-    status: "Active",
-    image: "/avatars/doctor-4.png",
-  },
-  {
-    id: "DR005",
-    name: "Dr. Lisa Wang",
-    specialization: "Dermatology",
-    email: "lisa.w@mediso.com",
-    phone: "+1 (555) 001-1122",
-    experience: "6 years",
-    status: "Active",
-    image: "/avatars/doctor-5.png",
-  },
-]
+export interface Doctor {
+  id: string;
+  name: string;
+  specialization: string;
+  email: string;
+  phone: string;
+  experience: string;
+  status: string;
+  image: string;
+}
 
-// Helps map a string to a predictable teal/emerald tint for avatars
 const getAvatarStyle = (name: string) => {
-  const charCode = name.charCodeAt(4) || 0; // Grab a letter from the name
+  if (!name) return "bg-emerald-100 text-emerald-700";
+  const charCode = name.charCodeAt(4) || 0; 
   const styles = [
     "bg-gradient-to-br from-emerald-100 to-teal-100 text-teal-700 dark:from-emerald-900/50 dark:to-teal-900/50 dark:text-teal-300",
     "bg-gradient-to-br from-emerald-50 to-green-100 text-emerald-700 dark:from-emerald-900/40 dark:to-green-900/40 dark:text-emerald-300",
@@ -73,15 +31,73 @@ const getAvatarStyle = (name: string) => {
 };
 
 export default function AdminDoctorsPage() {
+  const [doctors, setDoctors] = useState<Doctor[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [specialization, setSpecialization] = useState("")
+  const [loading, setLoading] = useState(true)
 
-  const filteredDoctors = doctors.filter((doctor) =>
-    doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    doctor.specialization.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingDoc, setEditingDoc] = useState<Doctor | null>(null)
+  
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', specialization: '', experience: '' })
+
+  const fetchDoctors = async () => {
+    setLoading(true)
+    try {
+      const data = await adminService.getDoctors(searchQuery, specialization);
+      setDoctors(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => fetchDoctors(), 400)
+    return () => clearTimeout(timer)
+  }, [searchQuery, specialization])
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to completely remove this doctor?')) return;
+    try {
+      await adminService.deleteDoctor(id);
+      fetchDoctors();
+    } catch (e) {
+      alert('Error deleting doctor');
+    }
+  }
+
+  const openNewModal = () => {
+    setEditingDoc(null);
+    setFormData({ name: '', email: '', phone: '', specialization: '', experience: '' });
+    setIsModalOpen(true);
+  }
+
+  const openEditModal = (doc: Doctor) => {
+    setEditingDoc(doc);
+    setFormData({ name: doc.name, email: doc.email, phone: doc.phone || '', specialization: doc.specialization, experience: doc.experience || '' });
+    setIsModalOpen(true);
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingDoc) {
+        await adminService.updateDoctor(editingDoc.id, formData);
+      } else {
+        await adminService.createDoctor(formData);
+      }
+      setIsModalOpen(false);
+      fetchDoctors();
+    } catch (err) {
+      alert("Error saving doctor");
+    }
+  }
 
   return (
-    <div className="space-y-10 animate-in fade-in zoom-in-95 duration-700">
+    <div className="space-y-10 animate-in fade-in zoom-in-95 duration-700 relative">
       {/* 1. Clear Visual Hierarchy + Page Title */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
         <div>
@@ -92,12 +108,12 @@ export default function AdminDoctorsPage() {
             Manage your medical staff, view schedules, and monitor availability.
           </p>
         </div>
-        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 hover:-translate-y-0.5 transition-all text-sm px-5 py-2.5 h-auto">
+        <Button onClick={openNewModal} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 hover:-translate-y-0.5 transition-all text-sm px-5 py-2.5 h-auto">
           <Plus className="mr-2 h-4 w-4" /> Add New Doctor
         </Button>
       </div>
 
-      {/* 2. Top Summary Section (Insights & Context) */}
+      {/* 2. Top Summary Section */}
       <div className="grid gap-6 md:grid-cols-3">
         <StatCard
           title="Total Doctors"
@@ -123,7 +139,6 @@ export default function AdminDoctorsPage() {
 
       {/* Main Content Area */}
       <div className="flex flex-col gap-6">
-        
         {/* 3. Improved Search & Filter UX */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-800/80 p-3 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700/50">
           <div className="relative flex-1 w-full sm:max-w-md group">
@@ -137,11 +152,12 @@ export default function AdminDoctorsPage() {
           </div>
           
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <select className="h-11 px-4 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-emerald-500/30 focus:border-emerald-500 outline-none cursor-pointer w-full sm:w-auto shadow-sm">
+            <select value={specialization} onChange={(e) => setSpecialization(e.target.value)} className="h-11 px-4 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-emerald-500/30 focus:border-emerald-500 outline-none cursor-pointer w-full sm:w-auto shadow-sm">
               <option value="">All Specializations</option>
               <option value="cardiology">Cardiology</option>
               <option value="neurology">Neurology</option>
               <option value="pediatrics">Pediatrics</option>
+              <option value="general">General</option>
             </select>
             <Button variant="outline" className="h-11 px-5 rounded-xl border-slate-200 hover:bg-slate-50 dark:border-slate-700 shadow-sm whitespace-nowrap">
               <Filter className="mr-2 h-4 w-4 text-slate-500" /> Filters
@@ -149,9 +165,8 @@ export default function AdminDoctorsPage() {
           </div>
         </div>
 
-        {/* 4. Upgrade Table Design (Card Hybrid) */}
+        {/* 4. Table Hybrid Design */}
         <div className="flex flex-col gap-3">
-          {/* Custom Header Row mimicking a table, but using grid/flex for spacing */}
           <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-widest">
             <div className="col-span-4">Doctor Details</div>
             <div className="col-span-2">Specialization</div>
@@ -160,19 +175,19 @@ export default function AdminDoctorsPage() {
             <div className="col-span-2 text-right pr-4">Actions</div>
           </div>
 
-          {filteredDoctors.length === 0 ? (
+          {!loading && doctors.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-16 bg-white dark:bg-slate-800/50 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700">
-              <p className="text-slate-400 font-medium">No doctors found matching your search.</p>
+              <p className="text-slate-400 font-medium">No doctors found matching your criteria.</p>
             </div>
           ) : (
-            filteredDoctors.map((doctor) => (
+            doctors.map((doctor) => (
               <div 
                 key={doctor.id} 
                 className="group flex flex-col lg:grid lg:grid-cols-12 gap-4 items-center bg-white dark:bg-slate-800/80 p-4 lg:px-6 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-100 dark:hover:border-emerald-900/30 transition-all duration-300"
               >
                 {/* Profile */}
                 <div className="col-span-4 w-full flex items-center gap-4">
-                  <Avatar className="h-12 w-12 border-2 border-white dark:border-slate-800 shadow-sm bg-white">
+                  <Avatar className="h-12 w-12 border-2 border-white dark:border-slate-800 shadow-sm bg-white text-emerald-700 dark:text-emerald-400">
                     <AvatarImage src={doctor.image} alt={doctor.name} />
                     <AvatarFallback className={`font-bold ${getAvatarStyle(doctor.name)}`}>
                       {doctor.name.replace("Dr. ", "").split(" ").map(n => n[0]).join("")}
@@ -214,15 +229,12 @@ export default function AdminDoctorsPage() {
                   </span>
                 </div>
 
-                {/* Actions (Visible on Hover/Always on Mobile) */}
+                {/* Actions */}
                 <div className="col-span-2 w-full lg:w-auto flex items-center lg:justify-end gap-2 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity duration-300 pr-2">
-                  <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20" title="View Profile">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20" title="Edit Doctor">
+                  <Button onClick={() => openEditModal(doctor)} variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20" title="Edit Doctor">
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20" title="Delete">
+                  <Button onClick={() => handleDelete(doctor.id)} variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20" title="Delete">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -231,6 +243,63 @@ export default function AdminDoctorsPage() {
           )}
         </div>
       </div>
+
+      {/* Modal for Add / Edit */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl w-full max-w-lg p-6 lg:p-8 animate-in zoom-in-95 duration-200 border border-slate-100 dark:border-slate-700/50">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                {editingDoc ? 'Edit Doctor Profile' : 'Onboard New Doctor'}
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Full Name</label>
+                  <Input required placeholder="Dr. John Doe" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-slate-50 dark:bg-slate-900" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Email Address</label>
+                  <Input required type="email" placeholder="doctor@mediso.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="bg-slate-50 dark:bg-slate-900" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Phone Number</label>
+                    <Input required placeholder="+1 (555) 001-2233" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="bg-slate-50 dark:bg-slate-900" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Experience</label>
+                    <Input required placeholder="e.g. 10 years" value={formData.experience} onChange={e => setFormData({...formData, experience: e.target.value})} className="bg-slate-50 dark:bg-slate-900" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Specialization</label>
+                  <select required value={formData.specialization} onChange={e => setFormData({...formData, specialization: e.target.value})} className="w-full h-10 px-3 py-2 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                    <option value="">Select Specialty</option>
+                    <option value="Cardiology">Cardiology</option>
+                    <option value="Neurology">Neurology</option>
+                    <option value="Pediatrics">Pediatrics</option>
+                    <option value="Orthopedics">Orthopedics</option>
+                    <option value="Dermatology">Dermatology</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="pt-2">
+                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 py-5">
+                  {editingDoc ? 'Save Changes' : 'Confirm & Add Doctor'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
