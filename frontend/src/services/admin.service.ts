@@ -14,12 +14,12 @@ export const adminService = {
     return data;
   },
   
-  createDoctor: async (doctorData: any) => {
+  createDoctor: async (doctorData: Record<string, unknown>) => {
     const { data } = await api.post('/doctors', doctorData);
     return data;
   },
 
-  updateDoctor: async (id: string, doctorData: any) => {
+  updateDoctor: async (id: string, doctorData: Record<string, unknown>) => {
     const { data } = await api.put(`/doctors/${id}`, doctorData);
     return data;
   },
