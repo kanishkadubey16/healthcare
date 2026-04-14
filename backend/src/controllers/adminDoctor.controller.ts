@@ -1,47 +1,71 @@
 import { Request, Response } from "express";
-import { doctors, getDoctors, addDoctor, updateDoctorDetails, removeDoctor } from "../models/doctor.model";
+import { getDoctors, addDoctor, updateDoctorDetails, removeDoctor } from "../models/doctor.model";
 
-export const getAllDoctors = (req: Request, res: Response) => {
-  const search = (req.query.search as string)?.toLowerCase() || "";
-  const spec = (req.query.specialization as string)?.toLowerCase() || "";
-  
-  let result = getDoctors();
-  
-  if (search) {
-    result = result.filter(d => d.name.toLowerCase().includes(search) || d.email.toLowerCase().includes(search));
+export const getAllDoctors = async (req: Request, res: Response) => {
+  try {
+    const search = (req.query.search as string) || "";
+    const specialization = (req.query.specialization as string) || "";
+    const result = await getDoctors(search, specialization);
+    res.status(200).json(result);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch doctors" });
   }
-  if (spec) {
-    result = result.filter(d => d.specialization.toLowerCase().includes(spec));
-  }
-  
-  res.status(200).json(result);
 };
 
-export const createDoctor = (req: Request, res: Response) => {
-  const payload = req.body;
-  const newDoctor = {
-    id: "DR" + Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
-    name: payload.name,
-    specialization: payload.specialization,
-    email: payload.email,
-    phone: payload.phone || "+1 (000) 000-0000",
-    experience: payload.experience || "0 years",
-    status: "Active",
-    image: "/avatars/default.png"
-  };
-  addDoctor(newDoctor);
-  res.status(201).json(newDoctor);
-};
+export const createDoctor = async (req: Request, res: Response) => {
+  try {
+    const { name, specialization, email, phone, experience } = req.body;
 
-export const updateDoctor = (req: Request, res: Response) => {
-  const updated = updateDoctorDetails(req.params.id, req.body);
-  if (!updated) {
-    return res.status(404).json({ message: "Doctor not found" });
+    if (!name || !specialization || !email) {
+      res.status(400).json({ message: "name, specialization, and email are required" });
+      return;
+    }
+
+    const newDoctor = await addDoctor({
+      name,
+      specialization,
+      email,
+      phone: phone || "+1 (000) 000-0000",
+      experience: experience || "0 years",
+    });
+    res.status(201).json(newDoctor);
+  } catch (error: unknown) {
+    const isPrismaUniqueViolation =
+      typeof error === "object" && error !== null && "code" in error && (error as { code: string }).code === "P2002";
+    if (isPrismaUniqueViolation) {
+      res.status(409).json({ message: "A doctor with this email already exists" });
+    } else {
+      res.status(500).json({ message: "Failed to create doctor" });
+    }
   }
-  res.status(200).json(updated);
 };
 
-export const deleteDoctor = (req: Request, res: Response) => {
-  removeDoctor(req.params.id);
-  res.status(200).json({ message: "Deleted successfully" });
+export const updateDoctor = async (req: Request, res: Response) => {
+  try {
+    const updated = await updateDoctorDetails(req.params.id, req.body);
+    res.status(200).json(updated);
+  } catch (error: unknown) {
+    const isNotFound =
+      typeof error === "object" && error !== null && "code" in error && (error as { code: string }).code === "P2025";
+    if (isNotFound) {
+      res.status(404).json({ message: "Doctor not found" });
+    } else {
+      res.status(500).json({ message: "Failed to update doctor" });
+    }
+  }
+};
+
+export const deleteDoctor = async (req: Request, res: Response) => {
+  try {
+    await removeDoctor(req.params.id);
+    res.status(200).json({ message: "Doctor deleted successfully" });
+  } catch (error: unknown) {
+    const isNotFound =
+      typeof error === "object" && error !== null && "code" in error && (error as { code: string }).code === "P2025";
+    if (isNotFound) {
+      res.status(404).json({ message: "Doctor not found" });
+    } else {
+      res.status(500).json({ message: "Failed to delete doctor" });
+    }
+  }
 };

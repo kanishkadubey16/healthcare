@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("patient")
+  createdAt    DateTime @default(now())
+}
+
+model Doctor {
+  id             String   @id @default(cuid())
+  name           String
+  specialization String
+  email          String   @unique
+  phone          String
+  experience     String
+  status         String   @default("Active")
+  image          String   @default("/avatars/default.png")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
