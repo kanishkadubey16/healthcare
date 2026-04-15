@@ -3,38 +3,45 @@
 import { Users, DollarSign, AlertTriangle, TrendingUp, UserPlus, Clock, MoreVertical } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { adminDashboardService } from "@/services/adminDashboard.service";
+import { adminDashboardService, DashboardStats } from "@/services/adminDashboard.service";
 import { useEffect, useState } from "react";
-import { DashboardData } from "@/types/dashboard.types";
+import { stat } from "fs";
+
 
 
 export default function AdminDashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [traffic, setTraffic] = useState<number[]>([40, 60, 45, 95, 65, 80, 50]);
 
   useEffect(() => {
-    const fetchDashboard = async () => {
+    adminDashboardService.getTraffic().then(setTraffic).catch(() => { });
+  }, []);
+
+  useEffect(() => {
+    const fetchStats = async () => {
       try {
-        const res = await adminDashboardService.getDashboard();
-        setData(res);
-      } catch (err: unknown) {
+        const data = await adminDashboardService.getStats();
+        setStats(data);
+      } catch {
         setError("Failed to load dashboard");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDashboard();
+    fetchStats();
   }, []);
 
-  /* ✅ Loading */
   if (loading) return <div className="p-6">Loading...</div>;
-
-  /* ✅ Error */
   if (error) return <div className="p-6 text-red-500">{error}</div>;
+  if (!stats) return null;
 
-  if (!data) return null;
+  const max = Math.max(...traffic);
+  const avg = Math.round(traffic.reduce((a, b) => a + b, 0) / traffic.length);
+  const normalize = (val: number) => max === 0 ? 0 : Math.round((val / max) * 100);
+  const avgPct = normalize(avg);
 
 
   return (
@@ -104,7 +111,7 @@ export default function AdminDashboardPage() {
 
           <div className="relative z-10 flex items-end justify-between">
             <div>
-              <p className="text-6xl font-black mb-3 tracking-tighter drop-shadow-xl text-transparent bg-clip-text bg-gradient-to-br from-white to-emerald-100">₹ {data.revenue.toLocaleString("en-IN")}</p>
+              <p className="text-6xl font-black mb-3 tracking-tighter drop-shadow-xl text-transparent bg-clip-text bg-gradient-to-br from-white to-emerald-100">₹ {(stats.totalRevenue ?? 0).toLocaleString('en-IN')}</p>
               <div className="flex items-center text-xs font-bold text-emerald-50 bg-black/20 w-max px-3 py-1.5 rounded-xl backdrop-blur-md border border-white/10 shadow-sm">
                 <TrendingUp className="h-3.5 w-3.5 mr-1.5 text-emerald-400" />
                 <span>+12.5% projected vs last month</span>
@@ -138,7 +145,7 @@ export default function AdminDashboardPage() {
           <div className="relative z-10">
             <h3 className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-xs mb-1">Total Patients</h3>
             <div className="flex items-end gap-3 mb-2">
-              <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">{data.patients.toLocaleString("en-IN")}</p>
+              <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">{(stats.totalPatients ?? 0).toLocaleString('en-IN')}</p>
               {/* <span className="mb-1 text-sm font-bold text-sky-600 flex items-center bg-sky-50 px-2 py-0.5 rounded-md"><ArrowUp className="w-3 h-3 mr-1" /> 4%</span> */}
             </div>
             {/* <p className="text-xs font-semibold text-slate-400">Peak hour: 10:00 AM</p> */}
@@ -163,8 +170,8 @@ export default function AdminDashboardPage() {
           <div className="relative z-10">
             <h3 className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-xs mb-1">Active Doctors</h3>
             <div className="flex items-end gap-3 mb-2">
-              <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">{data.doctors.toLocaleString("en-IN")}</p>
-              <p className="mb-1 text-sm font-bold text-slate-500 flex items-center">/ 50 limit</p>
+              <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">{(stats.activeDoctors ?? 0).toLocaleString('en-IN')}</p>
+              <p className="mb-1 text-sm font-bold text-slate-500 flex items-center">/ {(stats.totalDoctors ?? 0).toLocaleString('en-IN')} limit</p>
             </div>
             {/* <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Optimal Coverage</p> */}
           </div>
@@ -226,22 +233,20 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="flex-1 flex items-end justify-around relative pl-2 pb-8 h-64">
-              {/* Average dotted line */}
-              <div className="absolute left-0 right-0 bottom-[65%] border-t-2 border-dashed border-slate-200 dark:border-slate-700 w-full z-0 flex items-center">
-                <span className="absolute -top-3.5 right-0 bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase text-slate-400 px-2 py-0.5 rounded-full shadow-sm z-20">AVG 65</span>
-              </div>
 
-              {[40, 60, 45, 95, 65, 80, 50].map((h, i) => {
-                const isPeak = h === 95;
+
+              {traffic.map((h, i) => {
+                const isPeak = h === max;
+                const heightPct = normalize(h);
                 return (
                   <div key={i} className="flex flex-col items-center gap-3 w-full group cursor-crosshair relative z-10 h-full justify-end">
                     <div className={`w-3/4 relative rounded-md flex items-end overflow-hidden transition-all duration-500 h-full ${isPeak ? 'bg-emerald-50 max-w-[48px]' : 'bg-slate-50 max-w-[40px]'}`}>
                       <div
                         className={`w-full rounded-t-md transition-all duration-700 relative ${isPeak ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]" : "bg-slate-300 group-hover:bg-emerald-400"}`}
-                        style={{ height: `${h}%` }}
+                        style={{ height: `${heightPct}%` }}
                       >
                         <div className="absolute opacity-0 group-hover:opacity-100 -top-8 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] py-1 px-2 rounded-lg whitespace-nowrap transition-all shadow-xl z-20 font-bold scale-90 group-hover:scale-100 pointer-events-none">
-                          {h} pts
+                          {h}
                         </div>
                       </div>
                     </div>
@@ -277,34 +282,37 @@ export default function AdminDashboardPage() {
             {/* Vertical timeline connector */}
             <div className="absolute left-[11px] top-2 bottom-0 w-[2px] bg-slate-100 dark:bg-slate-800 z-0" />
 
-            {[
-              { id: 1, name: "Aarav Sharma", type: "General Consult", time: "LIVE", active: true },
-              { id: 2, name: "Priya Nair", type: "Cardiology", time: "11:30 AM", active: false },
-              { id: 3, name: "Rohan Mehta", type: "Dental", time: "01:15 PM", active: false },
-            ].map((patient) => (
+            {stats.upcomingAppointments.map((patient) => (
               <div key={patient.id} className="relative group cursor-pointer z-10">
                 {/* Timeline node */}
-                <div className={`absolute -left-8 top-1.5 w-3.5 h-3.5 rounded-full border-2 bg-white ${patient.active ? 'border-emerald-500 ring-4 ring-emerald-500/20 animate-pulse' : 'border-slate-300 group-hover:border-emerald-400 transition-colors'}`} />
+                <div className={`absolute -left-8 top-1.5 w-3.5 h-3.5 rounded-full border-2 bg-white  'border-slate-300 group-hover:border-emerald-400 transition-colors'}`} />
 
-                <div className={`flex flex-col p-4 rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1 ${patient.active ? 'border-emerald-300 bg-emerald-50/50 dark:bg-emerald-900/10 hover:border-emerald-400 shadow-emerald-500/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300'}`}>
+                <div className={`flex flex-col p-4 rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1  'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300'}`}>
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm border ${patient.active ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-slate-50 text-slate-700 border-slate-200 group-hover:bg-slate-100 group-hover:text-emerald-700'}`}>
-                        {patient.name.charAt(0)}
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm border  'bg-slate-50 text-slate-700 border-slate-200 group-hover:bg-slate-100 group-hover:text-emerald-700'}`}>
+                        {patient.patientName.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{patient.name}</p>
+                        <p className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{patient.patientName}</p>
                         <p className="text-xs font-semibold text-slate-500 mt-0.5 uppercase tracking-wider">{patient.type}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      {patient.active ? (
-                        <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md text-white bg-emerald-500 shadow-sm flex items-center gap-1.5 animate-in fade-in zoom-in">
-                          <Clock className="w-3 h-3" /> NEXT UP
-                        </span>
-                      ) : (
-                        <span className="text-xs font-bold text-slate-500 group-hover:text-slate-800 transition-colors">{patient.time}</span>
-                      )}
+                      <div className={`flex flex-col`}>
+                        <span className="text-xs font-bold text-slate-500 group-hover:text-slate-800 transition-colors">{new Date(patient.time).toLocaleTimeString('en-IN', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        }).toUpperCase()}</span>
+
+                        <span className="text-xs font-bold text-slate-500 group-hover:text-slate-800 transition-colors">{new Date(patient.time).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}</span>
+
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -312,9 +320,7 @@ export default function AdminDashboardPage() {
             ))}
           </div>
 
-          <Button className="w-full mt-4 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold border border-slate-200 shadow-sm transition-colors text-xs uppercase tracking-widest rounded-xl h-11">
-            Expand Timeline &rarr;
-          </Button>
+
         </div>
 
       </div>

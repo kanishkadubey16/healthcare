@@ -17,7 +17,7 @@ app.use(express.json());
 
 app.use("/api", authRouter);
 app.use("/api/admin", adminRouter);
-app.use("/api/admin", dashboardRoutes);
+
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "OK", message: "Healthcare API is running" });
