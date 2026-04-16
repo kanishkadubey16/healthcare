@@ -1,4 +1,4 @@
-import { api } from '@/lib/axios';
+import api from '@/lib/axios';
 
 export interface DashboardStats {
   totalRevenue: number;
@@ -22,8 +22,8 @@ export const adminDashboardService = {
     return data;
   },
   getTraffic: async (): Promise<number[]> => {
-  const { data } = await api.get('/admin/traffic');
-  return data;
-}
+    const { data } = await api.get('/admin/traffic');
+    return data;
+  }
 };
 

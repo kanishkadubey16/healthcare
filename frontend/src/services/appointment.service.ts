@@ -1,4 +1,4 @@
-import { api } from "@/lib/axios";
+import api from "@/lib/axios";
 import { Appointment } from "@/types/appointment.types";
 
 /** GET /appointments  — returns all appointments for the logged-in doctor */
