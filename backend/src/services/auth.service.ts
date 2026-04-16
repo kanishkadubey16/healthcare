@@ -44,6 +44,7 @@ export class AuthService {
     const tokenPayload: AuthUser = {
       id: user.id,
       email: user.email,
+      name: user.name || "User",
       role: user.role as "admin" | "doctor" | "patient",
     };
     const token = generateToken(tokenPayload);
