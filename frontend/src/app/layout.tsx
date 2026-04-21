@@ -12,6 +12,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import { TooltipProvider } from "@/components/ui/tooltip";
+
 export const metadata: Metadata = {
   title: "Mediso · Smart Hospital Management",
   description: "Role-based hospital appointment and patient management system",
@@ -27,7 +29,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <TooltipProvider>
+          {children}
+        </TooltipProvider>
       </body>
     </html>
   );
