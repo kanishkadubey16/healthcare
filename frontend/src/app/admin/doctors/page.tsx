@@ -80,7 +80,8 @@ export default function AdminDoctorsPage() {
       });
 
       fetchDoctors();
-    } catch {
+    } catch (error) {
+      console.error("Failed to delete doctor:", error);
       alert('Error deleting doctor');
     }
   };
@@ -119,7 +120,8 @@ export default function AdminDoctorsPage() {
 
       setIsModalOpen(false);
       fetchDoctors();
-    } catch {
+    } catch (error) {
+      console.error("Failed to save doctor:", error);
       alert("Error saving doctor");
     }
   };

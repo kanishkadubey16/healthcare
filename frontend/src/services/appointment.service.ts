@@ -13,7 +13,9 @@ export const cancelAppointment = async (id: string): Promise<void> => {
 };
 
 /** PATCH /appointments/:id/complete — mark an appointment as completed (Placeholder) */
-export const completeAppointment = async (): Promise<void> => {
+export const completeAppointment = async (id: string): Promise<void> => {
+  // Silence lint warning for now, until the API call below is uncommented
+  void id;
   // Simulate API call for design purposes
   await new Promise(resolve => setTimeout(resolve, 800));
   // await api.patch(`/appointments/${id}/complete`);

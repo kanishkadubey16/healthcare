@@ -78,7 +78,8 @@ export default function DoctorDashboardPage() {
         ]);
         setStats(s);
         setAppointments(appts);
-      } catch {
+      } catch (error) {
+        console.error("Failed to fetch doctor dashboard data:", error);
         // Use mock data when API is unavailable
         setStats(MOCK_STATS);
         setAppointments(MOCK_APPOINTMENTS);

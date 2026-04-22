@@ -55,7 +55,8 @@ export function AvailabilityForm({ initialSlots = [], onSlotsChange }: Availabil
       onSlotsChange?.(updated);
       setSuccess("Slot added successfully!");
       reset();
-    } catch {
+    } catch (error) {
+      console.error("Failed to add availability slot:", error);
       setError("Failed to add slot. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -70,7 +71,8 @@ export function AvailabilityForm({ initialSlots = [], onSlotsChange }: Availabil
       const updated = slots.filter((s) => s.id !== id);
       setSlots(updated);
       onSlotsChange?.(updated);
-    } catch {
+    } catch (error) {
+      console.error("Failed to delete availability slot:", error);
       setError("Failed to remove slot.");
     } finally {
       setDeletingId(null);

@@ -117,7 +117,8 @@ export default function DoctorAppointmentsPage() {
     try {
       const data = await getDoctorAppointments();
       setAppointments(data);
-    } catch {
+    } catch (error) {
+      console.error("Failed to fetch appointments:", error);
       setAppointments(MOCK_APPOINTMENTS);
     } finally {
       setLoading(false);
@@ -135,7 +136,8 @@ export default function DoctorAppointmentsPage() {
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: "cancelled" } : a))
       );
-    } catch {
+    } catch (error) {
+      console.error("Failed to cancel appointment:", error);
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: "cancelled" } : a))
       );
@@ -147,11 +149,12 @@ export default function DoctorAppointmentsPage() {
   const handleComplete = async (id: string) => {
     setCompleting(id);
     try {
-      await completeAppointment();
+      await completeAppointment(id);
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: "completed" } : a))
       );
-    } catch {
+    } catch (error) {
+      console.error("Failed to complete appointment:", error);
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: "completed" } : a))
       );
