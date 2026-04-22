@@ -3,32 +3,17 @@
 import { useEffect, useState, useCallback } from "react";
 import { getDoctorAppointments, cancelAppointment } from "@/services/appointment.service";
 import { Appointment } from "@/types/appointment.types";
+import { AppointmentCard } from "@/components/shared/AppointmentCard";
 import { PrescriptionForm } from "@/components/doctor/PrescriptionForm";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogClose,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { 
-  Search, 
-  CalendarDays, 
-  Loader2, 
-  Clock, 
-  CheckCircle2, 
-  ArrowUpDown,
-  XIcon
-} from "lucide-react";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { completeAppointment } from "@/services/appointment.service";
+import { Search, CalendarDays, Loader2, RefreshCw } from "lucide-react";
 
 type FilterStatus = "all" | "pending" | "confirmed" | "completed" | "cancelled";
 
@@ -102,8 +87,7 @@ export default function DoctorAppointmentsPage() {
     try {
       const data = await getDoctorAppointments();
       setAppointments(data);
-    } catch (error) {
-      console.error("Failed to fetch appointments:", error);
+    } catch {
       setAppointments(MOCK_APPOINTMENTS);
     } finally {
       setLoading(false);
@@ -121,30 +105,13 @@ export default function DoctorAppointmentsPage() {
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: "cancelled" } : a))
       );
-    } catch (error) {
-      console.error("Failed to cancel appointment:", error);
+    } catch {
+      // optimistic update fallback – just mark locally
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: "cancelled" } : a))
       );
     } finally {
       setCancelling(null);
-    }
-  };
-
-  const handleComplete = async (id: string) => {
-    setCompleting(id);
-    try {
-      await completeAppointment(id);
-      setAppointments((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status: "completed" } : a))
-      );
-    } catch (error) {
-      console.error("Failed to complete appointment:", error);
-      setAppointments((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status: "completed" } : a))
-      );
-    } finally {
-      setCompleting(null);
     }
   };
 
@@ -181,47 +148,16 @@ export default function DoctorAppointmentsPage() {
             Manage your patient appointments
           </p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search patients..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 h-11 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm focus:ring-blue-500/20"
-            />
-          </div>
-          <Select value={sortBy} onValueChange={(v: string | null) => v && setSortBy(v as "time" | "status")}>
-            <SelectTrigger className="w-[140px] h-11 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
-              <div className="flex items-center gap-2">
-                <ArrowUpDown className="h-3 w-3 text-slate-400" />
-                <SelectValue placeholder="Sort by" />
-              </div>
-            </SelectTrigger>
-            <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
-              <SelectItem value="time">By Time</SelectItem>
-              <SelectItem value="status">By Status</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* 2. Tabs Section */}
-      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-        {filters.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setActiveFilter(f.value)}
-            className={`px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all duration-300 border ${
-              activeFilter === f.value
-                ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-900 dark:border-white"
-                : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={fetchAppointments}
+          disabled={loading}
+          className="gap-2 rounded-xl"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </div>
 
       {/* Search + Filters */}
@@ -274,52 +210,17 @@ export default function DoctorAppointmentsPage() {
             </p>
           )}
         </div>
-
-        {/* 🔹 FOOTER (FIXED BUTTONS) */}
-        <div className="p-6 border-t border-slate-200 bg-white">
-          <div className="flex flex-wrap gap-3">
-
-            {/* Write Prescription */}
-            {detailsModal.appointment.status && ["confirmed", "pending"].includes(detailsModal.appointment.status.toLowerCase()) && (
-              <Button
-                className="flex-1 min-w-[150px] h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition"
-                onClick={() =>
-                  handlePrescribe(
-                    detailsModal.appointment!.id,
-                    detailsModal.appointment!.patientName
-                  )
-                }
-              >
-                Write Prescription
-              </Button>
-            )}
-
-            {/* Mark Completed */}
-            {detailsModal.appointment.status && !["completed", "cancelled"].includes(detailsModal.appointment.status.toLowerCase()) && (
-              <Button
-                className="flex-1 min-w-[150px] h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm transition"
-                onClick={() => handleComplete(detailsModal.appointment!.id)}
-              >
-                Mark Completed
-              </Button>
-            )}
-
-            {/* Cancel */}
-            {!["cancelled"].includes(detailsModal.appointment.status.toLowerCase()) && (
-              <Button
-                variant="outline"
-                className="flex-1 min-w-[150px] h-11 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition"
-                onClick={() => handleCancel(detailsModal.appointment!.id)}
-                disabled={cancelling === detailsModal.appointment.id}
-              >
-                {cancelling === detailsModal.appointment.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
-                Cancel
-              </Button>
-            )}
-
-          </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((appt) => (
+            <AppointmentCard
+              key={appt.id}
+              appointment={appt}
+              onCancel={handleCancel}
+              onPrescribe={handlePrescribe}
+              isLoading={cancelling === appt.id}
+            />
+          ))}
         </div>
       )}
 
@@ -349,4 +250,4 @@ export default function DoctorAppointmentsPage() {
       </Dialog>
     </div>
   );
-} 
+}
