@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { addAvailabilitySlot, deleteAvailabilitySlot, getDoctorSchedule } from "@/services/doctor.service";
+import { addAvailabilitySlot, deleteAvailabilitySlot } from "@/services/doctor.service";
 import { AvailabilitySlot } from "@/types/doctor.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +55,8 @@ export function AvailabilityForm({ initialSlots = [], onSlotsChange }: Availabil
       onSlotsChange?.(updated);
       setSuccess("Slot added successfully!");
       reset();
-    } catch {
+    } catch (error) {
+      console.error("Failed to add availability slot:", error);
       setError("Failed to add slot. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -70,7 +71,8 @@ export function AvailabilityForm({ initialSlots = [], onSlotsChange }: Availabil
       const updated = slots.filter((s) => s.id !== id);
       setSlots(updated);
       onSlotsChange?.(updated);
-    } catch {
+    } catch (error) {
+      console.error("Failed to delete availability slot:", error);
       setError("Failed to remove slot.");
     } finally {
       setDeletingId(null);
