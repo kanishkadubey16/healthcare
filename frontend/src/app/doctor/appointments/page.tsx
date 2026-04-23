@@ -100,7 +100,7 @@ export default function DoctorAppointmentsPage() {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterStatus>("all");
   const [sortBy, setSortBy] = useState<"time" | "status">("time");
-  
+
   const [detailsModal, setDetailsModal] = useState<{
     open: boolean;
     appointment: Appointment | null;
@@ -257,11 +257,10 @@ export default function DoctorAppointmentsPage() {
           <button
             key={f.value}
             onClick={() => setActiveFilter(f.value)}
-            className={`whitespace-nowrap px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all duration-300 border ${
-              activeFilter === f.value
+            className={`whitespace-nowrap px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all duration-300 border ${activeFilter === f.value
                 ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-900 dark:border-white"
                 : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800"
-            }`}
+              }`}
           >
             {f.label}
           </button>
@@ -373,48 +372,51 @@ export default function DoctorAppointmentsPage() {
           {detailsModal.appointment && (
             <>
               {/* 🔹 HEADER */}
-              <div className="relative px-8 py-6 bg-gradient-to-r from-blue-50 via-white to-indigo-50 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 border-b border-slate-200 dark:border-slate-800">
-                <DialogClose className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+              <div className="px-8 py-6 bg-gradient-to-r from-blue-50 via-white to-indigo-50 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 border-b border-slate-200 dark:border-slate-800 flex justify-between items-start">
+                <div className="flex-1">
+                  <Badge className={`mb-3 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest ${statusStyles[detailsModal.appointment.status]}`}>
+                    {detailsModal.appointment.status}
+                  </Badge>
+
+                  <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                    {detailsModal.appointment.patientName}
+                  </h2>
+
+                  <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest">
+                    Appointment ID: #{detailsModal.appointment.id}
+                  </p>
+                </div>
+
+                <DialogClose className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0">
                   <X className="h-5 w-5 text-slate-500" />
                 </DialogClose>
-
-                <Badge className={`mb-3 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest ${statusStyles[detailsModal.appointment.status]}`}>
-                  {detailsModal.appointment.status}
-                </Badge>
-
-                <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-                  {detailsModal.appointment.patientName}
-                </h2>
-
-                <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest">
-                  Appointment ID: #{detailsModal.appointment.id}
-                </p>
               </div>
 
               {/* 🔹 BODY */}
               <div className="flex-1 overflow-y-auto p-8 space-y-8">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition">
-                    <p className="text-xs text-slate-400 uppercase mb-1">Date</p>
-                    <p className="font-semibold text-slate-900 dark:text-white">
-                      {new Date(detailsModal.appointment.timeSlot).toLocaleDateString()}
+                  <div className="px-6 py-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 flex flex-col gap-1 transition-all hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-tight">Date</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">
+                      {new Date(detailsModal.appointment.timeSlot).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
 
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition">
-                    <p className="text-xs text-slate-400 uppercase mb-1">Time</p>
-                    <p className="font-semibold text-slate-900 dark:text-white">
-                      {new Date(detailsModal.appointment.timeSlot).toLocaleTimeString([], {
+                  <div className="px-6 py-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 flex flex-col gap-1 transition-all hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-tight">Time</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">
+                      {new Date(detailsModal.appointment.timeSlot).toLocaleTimeString('en-IN', {
                         hour: "2-digit",
                         minute: "2-digit",
-                      })}
+                        hour12: true
+                      }).toUpperCase()}
                     </p>
                   </div>
 
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition">
-                    <p className="text-xs text-slate-400 uppercase mb-1">Patient ID</p>
-                    <p className="font-semibold text-slate-900 dark:text-white">
-                      {detailsModal.appointment.patientId}
+                  <div className="px-6 py-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 flex flex-col gap-1 transition-all hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-tight">Patient ID</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                      #{detailsModal.appointment.patientId}
                     </p>
                   </div>
                 </div>
@@ -496,12 +498,14 @@ export default function DoctorAppointmentsPage() {
           showCloseButton={false}
           className="max-w-6xl w-full rounded-[32px] p-0 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar"
         >
-          <div className="bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 p-8 md:p-10 border-b border-slate-100 dark:border-slate-800 relative z-10">
-            <DialogClose className="absolute top-6 right-6 md:top-8 md:right-8 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors z-[100] p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+          <div className="bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 p-8 md:p-10 border-b border-slate-100 dark:border-slate-800 relative z-10 flex justify-between items-start">
+            <div className="flex-1 pr-8">
+              <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight relative z-10">Write Prescription</h2>
+              <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] mt-2">Patient: {rxDialog.patientName}</p>
+            </div>
+            <DialogClose className="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
               <X className="h-6 w-6 md:h-7 md:h-7" />
             </DialogClose>
-            <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight relative z-10">Write Prescription</h2>
-            <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] mt-2">Patient: {rxDialog.patientName}</p>
           </div>
           <div className="p-8">
             <PrescriptionForm

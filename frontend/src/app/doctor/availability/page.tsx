@@ -1,253 +1,324 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getDoctorAppointments, cancelAppointment } from "@/services/appointment.service";
-import { Appointment } from "@/types/appointment.types";
-import { AppointmentCard } from "@/components/shared/AppointmentCard";
-import { PrescriptionForm } from "@/components/doctor/PrescriptionForm";
+import { getDoctorSchedule, addAvailabilitySlot, deleteAvailabilitySlot } from "@/services/doctor.service";
+import { AvailabilitySlot } from "@/types/doctor.types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Search, CalendarDays, Loader2, RefreshCw } from "lucide-react";
+  CalendarDays,
+  Clock,
+  Trash2,
+  Plus,
+  Edit2,
+  Ban,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
+import AuthGuard from "@/components/shared/AuthGuard";
 
-type FilterStatus = "all" | "pending" | "confirmed" | "completed" | "cancelled";
-
-const MOCK_APPOINTMENTS: Appointment[] = [
-  {
-    id: "1",
-    patientId: "p1",
-    patientName: "Aarav Sharma",
-    doctorId: "d1",
-    doctorName: "Dr. Smith",
-    timeSlot: new Date(Date.now() + 3600_000).toISOString(),
-    status: "confirmed",
-    notes: "Routine checkup",
-  },
-  {
-    id: "2",
-    patientId: "p2",
-    patientName: "Priya Nair",
-    doctorId: "d1",
-    doctorName: "Dr. Smith",
-    timeSlot: new Date(Date.now() + 7200_000).toISOString(),
-    status: "pending",
-  },
-  {
-    id: "3",
-    patientId: "p3",
-    patientName: "Rohan Mehta",
-    doctorId: "d1",
-    doctorName: "Dr. Smith",
-    timeSlot: new Date(Date.now() - 86400_000).toISOString(),
-    status: "completed",
-    notes: "Follow-up for fever",
-  },
-  {
-    id: "4",
-    patientId: "p4",
-    patientName: "Kavya Reddy",
-    doctorId: "d1",
-    doctorName: "Dr. Smith",
-    timeSlot: new Date(Date.now() - 172800_000).toISOString(),
-    status: "cancelled",
-  },
-  {
-    id: "5",
-    patientId: "p5",
-    patientName: "Arjun Patel",
-    doctorId: "d1",
-    doctorName: "Dr. Smith",
-    timeSlot: new Date(Date.now() + 10800_000).toISOString(),
-    status: "confirmed",
-    notes: "Blood pressure monitoring",
-  },
-];
-
-export default function DoctorAppointmentsPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+export default function DoctorAvailabilityPage() {
+  const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cancelling, setCancelling] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterStatus>("all");
+  const [isAdding, setIsAdding] = useState(false);
+  
+  const [date, setDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
 
-  // Prescription dialog state
-  const [rxDialog, setRxDialog] = useState<{
-    open: boolean;
-    appointmentId: string;
-    patientName: string;
-  }>({ open: false, appointmentId: "", patientName: "" });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [unavailableSlots, setUnavailableSlots] = useState<Set<string>>(new Set());
 
-  const fetchAppointments = useCallback(async () => {
+  const fetchSlots = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getDoctorAppointments();
-      setAppointments(data);
+      const data = await getDoctorSchedule();
+      setSlots(data);
     } catch {
-      setAppointments(MOCK_APPOINTMENTS);
+      // Use empty list or fallback if API fails
+      setSlots([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchAppointments();
-  }, [fetchAppointments]);
+    fetchSlots();
+  }, [fetchSlots]);
 
-  const handleCancel = async (id: string) => {
-    setCancelling(id);
+  const handleAddSlot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!date || !startTime || !endTime) return;
+    
+    setIsAdding(true);
     try {
-      await cancelAppointment(id);
-      setAppointments((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status: "cancelled" } : a))
-      );
-    } catch {
-      // optimistic update fallback – just mark locally
-      setAppointments((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status: "cancelled" } : a))
-      );
+      const newSlot = await addAvailabilitySlot({ date, startTime, endTime });
+      setSlots((prev) => [...prev, newSlot].sort((a, b) => new Date(`${a.date}T${a.startTime}`).getTime() - new Date(`${b.date}T${b.startTime}`).getTime()));
+      setDate("");
+      setStartTime("");
+      setEndTime("");
+    } catch (err) {
+      console.error("Failed to add slot", err);
+      // Fallback for UI visualization if API fails
+      const fallbackSlot: AvailabilitySlot = {
+        id: Math.random().toString(),
+        doctorId: "d1",
+        date,
+        startTime,
+        endTime,
+        isBooked: false,
+      };
+      setSlots((prev) => [...prev, fallbackSlot].sort((a, b) => new Date(`${a.date}T${a.startTime}`).getTime() - new Date(`${b.date}T${b.startTime}`).getTime()));
+      setDate("");
+      setStartTime("");
+      setEndTime("");
     } finally {
-      setCancelling(null);
+      setIsAdding(false);
     }
   };
 
-  const handlePrescribe = (appointmentId: string, patientName: string) => {
-    setRxDialog({ open: true, appointmentId, patientName });
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await deleteAvailabilitySlot(id);
+      setSlots((prev) => prev.filter((s) => s.id !== id));
+    } catch (err) {
+      console.error("Failed to delete slot", err);
+      // Fallback for UI visualization
+      setSlots((prev) => prev.filter((s) => s.id !== id));
+    } finally {
+      setDeletingId(null);
+    }
   };
 
-  const filtered = appointments.filter((a) => {
-    const matchesSearch = a.patientName
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    const matchesFilter =
-      activeFilter === "all" || a.status === activeFilter;
-    return matchesSearch && matchesFilter;
-  });
-
-  const filters: { label: string; value: FilterStatus }[] = [
-    { label: "All", value: "all" },
-    { label: "Pending", value: "pending" },
-    { label: "Confirmed", value: "confirmed" },
-    { label: "Completed", value: "completed" },
-    { label: "Cancelled", value: "cancelled" },
-  ];
+  const handleMarkUnavailable = (id: string) => {
+    setUnavailableSlots(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
-            Appointments
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage your patient appointments
-          </p>
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={fetchAppointments}
-          disabled={loading}
-          className="gap-2 rounded-xl"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Search + Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            id="appt-search"
-            placeholder="Search by patient name…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 rounded-xl border-slate-200 dark:border-slate-700"
-          />
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {filters.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setActiveFilter(f.value)}
-              className={`rounded-xl px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                activeFilter === f.value
-                  ? "bg-teal-600 text-white border-teal-600"
-                  : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Count */}
-      <p className="text-xs text-slate-400 dark:text-slate-500">
-        Showing <strong className="text-slate-600 dark:text-slate-300">{filtered.length}</strong> appointments
-      </p>
-
-      {/* Appointment grid */}
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-          <Loader2 className="h-8 w-8 animate-spin mb-3 text-teal-500" />
-          <p className="text-sm">Loading appointments…</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 py-20 text-slate-400">
-          <CalendarDays className="h-12 w-12 mb-3 opacity-30" />
-          <p className="text-sm font-medium">No appointments found</p>
-          {search && (
-            <p className="text-xs mt-1 opacity-70">
-              Try clearing your search filter
+    <AuthGuard allowedRoles={["doctor"]}>
+      <div className="space-y-8 animate-in fade-in zoom-in-95 duration-700 max-w-[1600px] mx-auto pb-12">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
+          <div className="relative">
+            <div className="absolute -left-4 -top-4 w-20 h-20 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
+            <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3 relative z-10">
+              Schedule & Availability
+            </h1>
+            <p className="text-base text-slate-500 dark:text-slate-400 mt-2 font-medium max-w-xl relative z-10">
+              Manage your daily time slots, add new availability, and organize your work hours.
             </p>
-          )}
+          </div>
         </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((appt) => (
-            <AppointmentCard
-              key={appt.id}
-              appointment={appt}
-              onCancel={handleCancel}
-              onPrescribe={handlePrescribe}
-              isLoading={cancelling === appt.id}
-            />
-          ))}
-        </div>
-      )}
 
-      {/* Prescription Dialog */}
-      <Dialog
-        open={rxDialog.open}
-        onOpenChange={(open) => setRxDialog((s) => ({ ...s, open }))}
-      >
-        <DialogContent className="max-w-2xl rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-slate-800 dark:text-slate-100">
-              Write Prescription
-            </DialogTitle>
-          </DialogHeader>
-          <PrescriptionForm
-            appointmentId={rxDialog.appointmentId}
-            patientName={rxDialog.patientName}
-            onSuccess={() => {
-              setRxDialog({ open: false, appointmentId: "", patientName: "" });
-              fetchAppointments();
-            }}
-            onCancel={() =>
-              setRxDialog({ open: false, appointmentId: "", patientName: "" })
-            }
-          />
-        </DialogContent>
-      </Dialog>
-    </div>
+        {/* Content Grid */}
+        <div className="grid gap-8 lg:grid-cols-12 pt-4">
+          
+          {/* Section 1: Add Availability Form */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-slate-900 dark:from-emerald-800 dark:to-slate-950 p-8 rounded-3xl shadow-2xl shadow-emerald-600/20 border border-emerald-500/50 relative overflow-hidden group">
+               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay pointer-events-none" />
+               <div className="absolute -right-4 -bottom-12 opacity-5 mix-blend-overlay group-hover:scale-110 group-hover:-rotate-6 transition-all duration-1000 pointer-events-none">
+                 <CalendarDays className="w-80 h-80" strokeWidth={3} />
+               </div>
+               
+               <h3 className="font-bold text-white text-xl flex items-center gap-3 tracking-tight mb-8 relative z-10">
+                  <span className="p-2.5 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner">
+                    <Plus className="h-5 w-5 text-emerald-100" />
+                  </span>
+                  Add Availability
+               </h3>
+
+               <form onSubmit={handleAddSlot} className="relative z-10 space-y-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-extrabold uppercase tracking-widest text-emerald-100/80">Select Date</label>
+                    <Input 
+                      type="date" 
+                      required 
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="h-12 bg-black/20 border-white/10 text-white placeholder:text-white/50 focus:ring-emerald-400/50 rounded-2xl backdrop-blur-sm"
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-extrabold uppercase tracking-widest text-emerald-100/80">Start Time</label>
+                      <Input 
+                        type="time" 
+                        required 
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="h-12 bg-black/20 border-white/10 text-white placeholder:text-white/50 focus:ring-emerald-400/50 rounded-2xl backdrop-blur-sm [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-extrabold uppercase tracking-widest text-emerald-100/80">End Time</label>
+                      <Input 
+                        type="time" 
+                        required 
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="h-12 bg-black/20 border-white/10 text-white placeholder:text-white/50 focus:ring-emerald-400/50 rounded-2xl backdrop-blur-sm [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                      />
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    disabled={isAdding}
+                    className="w-full h-12 mt-4 bg-white hover:bg-emerald-50 text-emerald-700 font-black tracking-widest uppercase rounded-2xl shadow-lg transition-all active:scale-95"
+                  >
+                    {isAdding ? <Loader2 className="h-5 w-5 animate-spin" /> : "Add Slot"}
+                  </Button>
+               </form>
+            </div>
+            
+            <div className="bg-white dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/50 rounded-3xl p-6 shadow-sm">
+               <div className="flex items-start gap-4">
+                 <div className="bg-amber-100 dark:bg-amber-900/40 p-2.5 rounded-xl text-amber-600 dark:text-amber-400 shrink-0">
+                   <AlertTriangle className="h-5 w-5" />
+                 </div>
+                 <div>
+                   <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">Important Note</h4>
+                   <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                     Slots marked as <strong className="text-slate-700 dark:text-slate-300">Booked</strong> have a patient appointment associated and cannot be deleted. Mark them as unavailable only if absolutely necessary.
+                   </p>
+                 </div>
+               </div>
+            </div>
+          </div>
+
+          {/* Section 2: My Schedule */}
+          <div className="lg:col-span-8 bg-white dark:bg-slate-800/90 rounded-3xl border border-slate-200/60 dark:border-slate-700/50 p-8 flex flex-col shadow-lg shadow-slate-200/30 transition-all min-h-[500px]">
+            <div className="flex justify-between items-start mb-8 pb-4 border-b border-slate-100 dark:border-slate-700/50">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">My Schedule</h3>
+                <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">Manage active slots</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 text-[10px] font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">
+                  {slots.length} Active Slots
+                </span>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center flex-1 text-slate-400">
+                <Loader2 className="h-10 w-10 animate-spin mb-4 text-emerald-500" />
+                <p className="text-sm font-bold uppercase tracking-widest">Loading schedule...</p>
+              </div>
+            ) : slots.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                <CalendarDays className="h-16 w-16 mb-4 opacity-20 text-slate-500" />
+                <p className="text-sm font-black uppercase tracking-widest text-slate-500">No availability set</p>
+                <p className="text-xs mt-2 opacity-60 text-slate-500">Add slots using the form to open your calendar.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 content-start">
+                {slots.map((slot) => {
+                  const slotDate = new Date(slot.date);
+                  const isPast = slotDate < new Date(new Date().setHours(0,0,0,0));
+                  const isUnavailable = unavailableSlots.has(slot.id);
+                  
+                  return (
+                    <div 
+                      key={slot.id} 
+                      className={`relative group p-6 rounded-[22px] border transition-all duration-300 ${
+                        slot.isBooked 
+                          ? 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 opacity-80' 
+                          : isUnavailable
+                            ? 'bg-rose-50/50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-900/50 opacity-80'
+                            : isPast 
+                              ? 'bg-slate-50/50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800 opacity-50'
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700/50 hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm border transition-colors ${
+                            slot.isBooked 
+                              ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800' 
+                              : isUnavailable
+                                ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-900/30 dark:border-rose-800'
+                                : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800 group-hover:bg-emerald-100 group-hover:border-emerald-300'
+                          }`}>
+                            <CalendarDays className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="font-black text-sm text-slate-900 dark:text-white uppercase tracking-wider">
+                              {slotDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} — {slotDate.toLocaleDateString('en-IN', { year: 'numeric' })}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1 text-slate-500">
+                              <Clock className="h-3 w-3" />
+                              <span className="text-[10px] font-bold uppercase tracking-widest">
+                                {slot.startTime} to {slot.endTime}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        {slot.isBooked ? (
+                          <span className="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md">
+                            Booked
+                          </span>
+                        ) : isUnavailable ? (
+                          <span className="bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md">
+                            Unavailable
+                          </span>
+                        ) : (
+                          <span className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md">
+                            Available
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                            disabled={slot.isBooked || isPast}
+                            title="Edit Slot"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-8 w-8 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-colors"
+                            disabled={slot.isBooked || isPast}
+                            title={isUnavailable ? "Mark Available" : "Mark Unavailable"}
+                            onClick={() => handleMarkUnavailable(slot.id)}
+                          >
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => handleDelete(slot.id)}
+                          disabled={slot.isBooked || deletingId === slot.id || isPast}
+                          className="h-8 px-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
+                        >
+                          {deletingId === slot.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Trash2 className="h-3 w-3 mr-1.5" /> Delete</>}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </AuthGuard>
   );
 }

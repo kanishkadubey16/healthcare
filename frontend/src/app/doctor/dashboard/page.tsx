@@ -217,15 +217,13 @@ export default function DoctorDashboardPage() {
               </span>
             </div>
 
-            <div className="relative z-10 flex items-end justify-between">
-              <div>
-                <p className="text-6xl font-black mb-3 tracking-tighter drop-shadow-xl text-transparent bg-clip-text bg-gradient-to-br from-white to-teal-100">
-                  {stats?.todayAppointments ?? 0}
-                </p>
-                <div className="flex items-center text-xs font-bold text-teal-50 bg-black/20 w-max px-3 py-1.5 rounded-xl backdrop-blur-md border border-white/10 shadow-sm">
-                  <TrendingUp className="h-3.5 w-3.5 mr-1.5 text-teal-400" />
-                  <span>+2 from yesterday</span>
-                </div>
+            <div className="relative z-10 flex flex-col items-center justify-center w-full">
+              <p className="text-6xl font-black mb-3 tracking-tighter drop-shadow-xl text-transparent bg-clip-text bg-gradient-to-br from-white to-teal-100">
+                {stats?.todayAppointments ?? 0}
+              </p>
+              <div className="flex items-center text-[10px] font-bold text-teal-50 bg-black/20 w-max px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 shadow-sm uppercase tracking-widest">
+                <TrendingUp className="h-3 w-3 mr-1.5 text-teal-400" />
+                <span>+2 from yesterday</span>
               </div>
             </div>
           </div>
@@ -244,16 +242,14 @@ export default function DoctorDashboardPage() {
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </div>
-            <div className="relative z-10">
-              <h3 className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[10px] mb-1">Completed Appointments</h3>
-              <div className="flex items-end gap-3 mb-2">
-                <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">
-                  {appointments.filter(a => a.status === 'completed').length}
-                </p>
-                <span className="mb-1 text-[10px] font-bold text-emerald-600 flex items-center bg-emerald-50 px-2 py-0.5 rounded-md">
-                   DONE
-                </span>
-              </div>
+            <div className="relative z-10 flex flex-col items-center w-full mt-2">
+              <h3 className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[10px] mb-2 text-center">Completed Appointments</h3>
+              <p className="text-5xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
+                {appointments.filter(a => a.status === 'completed').length}
+              </p>
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md uppercase tracking-widest">
+                 Done
+              </span>
             </div>
           </div>
 
@@ -271,18 +267,20 @@ export default function DoctorDashboardPage() {
                 <div className="h-3 w-3 bg-rose-500 rounded-full border-2 border-white dark:border-slate-800 shadow-sm animate-bounce" />
               )}
             </div>
-            <div className="relative z-10">
-              <h3 className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[10px] mb-1">Pending Prescriptions</h3>
-              <div className="flex items-end gap-3 mb-2">
-                <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">
-                  {stats?.pendingPrescriptions ?? 0}
-                </p>
-                {(stats?.pendingPrescriptions ?? 0) > 0 && (
-                  <span className="mb-1 text-[10px] font-bold text-rose-600 flex items-center bg-rose-50 px-2 py-0.5 rounded-md uppercase">
-                    Urgent
-                  </span>
-                )}
-              </div>
+            <div className="relative z-10 flex flex-col items-center w-full mt-2">
+              <h3 className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[10px] mb-2 text-center">Pending Prescriptions</h3>
+              <p className="text-5xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
+                {stats?.pendingPrescriptions ?? 0}
+              </p>
+              {(stats?.pendingPrescriptions ?? 0) > 0 ? (
+                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-md uppercase tracking-widest">
+                  Urgent
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md uppercase tracking-widest opacity-0">
+                  None
+                </span>
+              )}
             </div>
           </div>
 
@@ -297,17 +295,15 @@ export default function DoctorDashboardPage() {
                 </div>
               </div>
             </div>
-            <div className="relative z-10">
-              <h3 className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[10px] mb-1">Total Patients Seen</h3>
-              <div className="flex items-end gap-3 mb-2">
-                <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">
-                  {stats?.totalPatients ?? 0}
-                </p>
-                <div className="flex -space-x-2 overflow-hidden mb-1">
-                  {[1,2,3].map(i => (
-                    <div key={i} className="inline-block h-5 w-5 rounded-full ring-2 ring-white dark:ring-slate-800 bg-slate-100" />
-                  ))}
-                </div>
+            <div className="relative z-10 flex flex-col items-center w-full mt-2">
+              <h3 className="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[10px] mb-2 text-center">Total Patients Seen</h3>
+              <p className="text-5xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
+                {stats?.totalPatients ?? 0}
+              </p>
+              <div className="flex -space-x-2 overflow-hidden">
+                {[1,2,3].map(i => (
+                  <div key={i} className="inline-block h-5 w-5 rounded-full ring-2 ring-white dark:ring-slate-800 bg-slate-100" />
+                ))}
               </div>
             </div>
           </div>
@@ -348,9 +344,9 @@ export default function DoctorDashboardPage() {
                   return (
                     <div 
                       key={appt.id} 
-                      className={`relative group p-5 rounded-[22px] border transition-all duration-500 overflow-hidden ${
+                      className={`relative group p-6 rounded-[22px] border transition-all duration-500 overflow-hidden ${
                         isNext 
-                        ? 'bg-slate-900 text-white border-slate-800 shadow-xl shadow-slate-400/20 scale-[1.02] z-10 dark:bg-white dark:text-slate-900' 
+                        ? 'bg-gradient-to-br from-teal-500 to-emerald-600 text-white border-teal-400 shadow-xl shadow-teal-500/30 scale-[1.02] z-10' 
                         : 'bg-white text-slate-900 border-slate-100 hover:border-slate-200 hover:shadow-md dark:bg-slate-800/50 dark:text-white dark:border-slate-700'
                       }`}
                     >
@@ -365,18 +361,18 @@ export default function DoctorDashboardPage() {
                       <div className="flex items-center gap-4 mb-4">
                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm border transition-colors ${
                           isNext 
-                          ? 'bg-white/10 border-white/10 text-white dark:bg-slate-100 dark:border-slate-200 dark:text-slate-700' 
+                          ? 'bg-white/20 border-white/20 text-white' 
                           : 'bg-slate-50 border-slate-100 text-slate-600 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300'
                         }`}>
                           {appt.patientName?.charAt(0)}
                         </div>
                         <div>
-                          <p className={`font-black text-base tracking-tight ${isNext ? 'text-white dark:text-slate-900' : 'text-slate-900 dark:text-white'}`}>
+                          <p className={`font-black text-base tracking-tight ${isNext ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
                             {appt.patientName}
                           </p>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <Clock className={`h-3 w-3 ${isNext ? 'text-teal-400' : 'text-slate-400'}`} />
-                            <span className={`text-[10px] font-bold uppercase tracking-widest ${isNext ? 'text-teal-400/80' : 'text-slate-500'}`}>
+                            <Clock className={`h-3 w-3 ${isNext ? 'text-teal-100' : 'text-slate-400'}`} />
+                            <span className={`text-[10px] font-bold uppercase tracking-widest ${isNext ? 'text-teal-50' : 'text-slate-500'}`}>
                               {new Date(appt.timeSlot).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }).toUpperCase()}
                             </span>
                           </div>
@@ -395,7 +391,7 @@ export default function DoctorDashboardPage() {
                           size="sm" 
                           className={`h-9 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 ${
                             isNext 
-                            ? 'bg-teal-500 hover:bg-teal-600 text-white shadow-lg shadow-teal-500/20 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800' 
+                            ? 'bg-white hover:bg-teal-50 text-teal-700 shadow-lg shadow-black/10' 
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
                           }`}
                         >
@@ -411,22 +407,22 @@ export default function DoctorDashboardPage() {
 
           {/* Activity/Sidebar widget */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-white dark:to-slate-50 p-8 rounded-3xl shadow-xl border border-slate-800 dark:border-slate-200 relative overflow-hidden group">
-               <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:rotate-12 transition-transform duration-700">
-                  <Activity className="h-20 w-20 text-white dark:text-slate-900" />
+            <div className="bg-white dark:bg-slate-800/90 p-8 rounded-3xl shadow-lg shadow-slate-200/30 border border-slate-200/60 dark:border-slate-700/50 relative overflow-hidden group">
+               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:rotate-12 transition-transform duration-700 pointer-events-none">
+                  <Activity className="h-20 w-20 text-slate-900 dark:text-white" />
                </div>
-               <h4 className="text-white dark:text-slate-900 font-black text-xl mb-2 relative z-10">Quick Actions</h4>
+               <h4 className="text-slate-900 dark:text-white font-black text-xl mb-2 relative z-10">Quick Actions</h4>
                <p className="text-slate-400 dark:text-slate-500 text-xs font-semibold uppercase tracking-widest mb-8 relative z-10">Streamline your workflow</p>
                
                <div className="grid grid-cols-1 gap-3 relative z-10">
-                  <Button variant="outline" className="justify-start h-12 bg-white/5 border-white/10 text-white hover:bg-white/10 dark:bg-slate-100 dark:border-slate-200 dark:text-slate-900 dark:hover:bg-slate-200 rounded-2xl font-bold text-sm">
-                    <CalendarDays className="mr-3 h-4 w-4 text-teal-400" /> Update Schedule
+                  <Button variant="outline" onClick={() => window.location.href='/doctor/availability'} className="justify-start h-12 bg-slate-50 border-slate-100 text-slate-700 hover:bg-slate-100 hover:text-teal-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 rounded-2xl font-bold text-sm shadow-sm">
+                    <CalendarDays className="mr-3 h-4 w-4 text-teal-500" /> Update Schedule
                   </Button>
-                  <Button variant="outline" className="justify-start h-12 bg-white/5 border-white/10 text-white hover:bg-white/10 dark:bg-slate-100 dark:border-slate-200 dark:text-slate-900 dark:hover:bg-slate-200 rounded-2xl font-bold text-sm">
-                    <Users className="mr-3 h-4 w-4 text-emerald-400" /> Patient Records
+                  <Button variant="outline" className="justify-start h-12 bg-slate-50 border-slate-100 text-slate-700 hover:bg-slate-100 hover:text-emerald-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 rounded-2xl font-bold text-sm shadow-sm">
+                    <Users className="mr-3 h-4 w-4 text-emerald-500" /> Patient Records
                   </Button>
-                  <Button variant="outline" className="justify-start h-12 bg-white/5 border-white/10 text-white hover:bg-white/10 dark:bg-slate-100 dark:border-slate-200 dark:text-slate-900 dark:hover:bg-slate-200 rounded-2xl font-bold text-sm">
-                    <FileText className="mr-3 h-4 w-4 text-amber-400" /> Prescriptions
+                  <Button variant="outline" onClick={() => window.location.href='/doctor/prescriptions'} className="justify-start h-12 bg-slate-50 border-slate-100 text-slate-700 hover:bg-slate-100 hover:text-amber-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 rounded-2xl font-bold text-sm shadow-sm">
+                    <FileText className="mr-3 h-4 w-4 text-amber-500" /> Prescriptions
                   </Button>
                </div>
             </div>

@@ -43,6 +43,20 @@ export const getDoctorPrescriptions = async (): Promise<Prescription[]> => {
   return data;
 };
 
+/** DELETE /prescriptions/:id  — remove a prescription */
+export const deletePrescription = async (id: string): Promise<void> => {
+  await api.delete(`/prescriptions/${id}`);
+};
+
+/** PUT /prescriptions/:id  — update a prescription */
+export const updatePrescription = async (
+  id: string,
+  payload: Partial<CreatePrescriptionPayload>
+): Promise<Prescription> => {
+  const { data } = await api.put<Prescription>(`/prescriptions/${id}`, payload);
+  return data;
+};
+
 // ── Dashboard Stats ───────────────────────────────────────────────────────────
 
 /** GET /doctor/stats  — aggregated numbers for the dashboard */
