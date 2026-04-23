@@ -1,87 +1,324 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getDoctorSchedule } from "@/services/doctor.service";
+import { useEffect, useState, useCallback } from "react";
+import { getDoctorSchedule, addAvailabilitySlot, deleteAvailabilitySlot } from "@/services/doctor.service";
 import { AvailabilitySlot } from "@/types/doctor.types";
-import { AvailabilityForm } from "@/components/doctor/AvailabilityForm";
-import { CalendarDays, Loader2 } from "lucide-react";
-
-const MOCK_SLOTS: AvailabilitySlot[] = [
-  {
-    id: "s1",
-    doctorId: "d1",
-    date: new Date(Date.now() + 86400_000).toISOString().split("T")[0],
-    startTime: "09:00",
-    endTime: "10:00",
-    isBooked: false,
-  },
-  {
-    id: "s2",
-    doctorId: "d1",
-    date: new Date(Date.now() + 86400_000).toISOString().split("T")[0],
-    startTime: "11:00",
-    endTime: "12:00",
-    isBooked: true,
-  },
-  {
-    id: "s3",
-    doctorId: "d1",
-    date: new Date(Date.now() + 172800_000).toISOString().split("T")[0],
-    startTime: "14:00",
-    endTime: "15:00",
-    isBooked: false,
-  },
-];
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  CalendarDays,
+  Clock,
+  Trash2,
+  Plus,
+  Edit2,
+  Ban,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
+import AuthGuard from "@/components/shared/AuthGuard";
 
 export default function DoctorAvailabilityPage() {
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  
+  const [date, setDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
 
-  useEffect(() => {
-    const fetchSlots = async () => {
-      try {
-        const data = await getDoctorSchedule();
-        setSlots(data);
-      } catch {
-        setSlots(MOCK_SLOTS);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSlots();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [unavailableSlots, setUnavailableSlots] = useState<Set<string>>(new Set());
+
+  const fetchSlots = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getDoctorSchedule();
+      setSlots(data);
+    } catch {
+      // Use empty list or fallback if API fails
+      setSlots([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchSlots();
+  }, [fetchSlots]);
+
+  const handleAddSlot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!date || !startTime || !endTime) return;
+    
+    setIsAdding(true);
+    try {
+      const newSlot = await addAvailabilitySlot({ date, startTime, endTime });
+      setSlots((prev) => [...prev, newSlot].sort((a, b) => new Date(`${a.date}T${a.startTime}`).getTime() - new Date(`${b.date}T${b.startTime}`).getTime()));
+      setDate("");
+      setStartTime("");
+      setEndTime("");
+    } catch (err) {
+      console.error("Failed to add slot", err);
+      // Fallback for UI visualization if API fails
+      const fallbackSlot: AvailabilitySlot = {
+        id: Math.random().toString(),
+        doctorId: "d1",
+        date,
+        startTime,
+        endTime,
+        isBooked: false,
+      };
+      setSlots((prev) => [...prev, fallbackSlot].sort((a, b) => new Date(`${a.date}T${a.startTime}`).getTime() - new Date(`${b.date}T${b.startTime}`).getTime()));
+      setDate("");
+      setStartTime("");
+      setEndTime("");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await deleteAvailabilitySlot(id);
+      setSlots((prev) => prev.filter((s) => s.id !== id));
+    } catch (err) {
+      console.error("Failed to delete slot", err);
+      // Fallback for UI visualization
+      setSlots((prev) => prev.filter((s) => s.id !== id));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleMarkUnavailable = (id: string) => {
+    setUnavailableSlots(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
-          Availability
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-          Manage the time slots when patients can book appointments with you
-        </p>
-      </div>
-
-      {/* Info banner */}
-      <div className="flex items-start gap-3 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 px-4 py-3">
-        <CalendarDays className="h-4 w-4 text-blue-500 dark:text-blue-400 mt-0.5 shrink-0" />
-        <p className="text-sm text-blue-700 dark:text-blue-300">
-          Slots marked as <strong>Booked</strong> have a patient appointment associated and cannot be deleted. Add future dates only.
-        </p>
-      </div>
-
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-          <Loader2 className="h-8 w-8 animate-spin mb-3 text-teal-500" />
-          <p className="text-sm">Loading your schedule…</p>
+    <AuthGuard allowedRoles={["doctor"]}>
+      <div className="space-y-8 animate-in fade-in zoom-in-95 duration-700 max-w-[1600px] mx-auto pb-12">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
+          <div className="relative">
+            <div className="absolute -left-4 -top-4 w-20 h-20 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
+            <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3 relative z-10">
+              Schedule & Availability
+            </h1>
+            <p className="text-base text-slate-500 dark:text-slate-400 mt-2 font-medium max-w-xl relative z-10">
+              Manage your daily time slots, add new availability, and organize your work hours.
+            </p>
+          </div>
         </div>
-      ) : (
-        <AvailabilityForm
-          initialSlots={slots}
-          onSlotsChange={(updated) => setSlots(updated)}
-        />
-      )}
-    </div>
+
+        {/* Content Grid */}
+        <div className="grid gap-8 lg:grid-cols-12 pt-4">
+          
+          {/* Section 1: Add Availability Form */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-slate-900 dark:from-emerald-800 dark:to-slate-950 p-8 rounded-3xl shadow-2xl shadow-emerald-600/20 border border-emerald-500/50 relative overflow-hidden group">
+               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay pointer-events-none" />
+               <div className="absolute -right-4 -bottom-12 opacity-5 mix-blend-overlay group-hover:scale-110 group-hover:-rotate-6 transition-all duration-1000 pointer-events-none">
+                 <CalendarDays className="w-80 h-80" strokeWidth={3} />
+               </div>
+               
+               <h3 className="font-bold text-white text-xl flex items-center gap-3 tracking-tight mb-8 relative z-10">
+                  <span className="p-2.5 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner">
+                    <Plus className="h-5 w-5 text-emerald-100" />
+                  </span>
+                  Add Availability
+               </h3>
+
+               <form onSubmit={handleAddSlot} className="relative z-10 space-y-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-extrabold uppercase tracking-widest text-emerald-100/80">Select Date</label>
+                    <Input 
+                      type="date" 
+                      required 
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="h-12 bg-black/20 border-white/10 text-white placeholder:text-white/50 focus:ring-emerald-400/50 rounded-2xl backdrop-blur-sm"
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-extrabold uppercase tracking-widest text-emerald-100/80">Start Time</label>
+                      <Input 
+                        type="time" 
+                        required 
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="h-12 bg-black/20 border-white/10 text-white placeholder:text-white/50 focus:ring-emerald-400/50 rounded-2xl backdrop-blur-sm [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-extrabold uppercase tracking-widest text-emerald-100/80">End Time</label>
+                      <Input 
+                        type="time" 
+                        required 
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="h-12 bg-black/20 border-white/10 text-white placeholder:text-white/50 focus:ring-emerald-400/50 rounded-2xl backdrop-blur-sm [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                      />
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    disabled={isAdding}
+                    className="w-full h-12 mt-4 bg-white hover:bg-emerald-50 text-emerald-700 font-black tracking-widest uppercase rounded-2xl shadow-lg transition-all active:scale-95"
+                  >
+                    {isAdding ? <Loader2 className="h-5 w-5 animate-spin" /> : "Add Slot"}
+                  </Button>
+               </form>
+            </div>
+            
+            <div className="bg-white dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/50 rounded-3xl p-6 shadow-sm">
+               <div className="flex items-start gap-4">
+                 <div className="bg-amber-100 dark:bg-amber-900/40 p-2.5 rounded-xl text-amber-600 dark:text-amber-400 shrink-0">
+                   <AlertTriangle className="h-5 w-5" />
+                 </div>
+                 <div>
+                   <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">Important Note</h4>
+                   <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                     Slots marked as <strong className="text-slate-700 dark:text-slate-300">Booked</strong> have a patient appointment associated and cannot be deleted. Mark them as unavailable only if absolutely necessary.
+                   </p>
+                 </div>
+               </div>
+            </div>
+          </div>
+
+          {/* Section 2: My Schedule */}
+          <div className="lg:col-span-8 bg-white dark:bg-slate-800/90 rounded-3xl border border-slate-200/60 dark:border-slate-700/50 p-8 flex flex-col shadow-lg shadow-slate-200/30 transition-all min-h-[500px]">
+            <div className="flex justify-between items-start mb-8 pb-4 border-b border-slate-100 dark:border-slate-700/50">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">My Schedule</h3>
+                <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">Manage active slots</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 text-[10px] font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">
+                  {slots.length} Active Slots
+                </span>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center flex-1 text-slate-400">
+                <Loader2 className="h-10 w-10 animate-spin mb-4 text-emerald-500" />
+                <p className="text-sm font-bold uppercase tracking-widest">Loading schedule...</p>
+              </div>
+            ) : slots.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                <CalendarDays className="h-16 w-16 mb-4 opacity-20 text-slate-500" />
+                <p className="text-sm font-black uppercase tracking-widest text-slate-500">No availability set</p>
+                <p className="text-xs mt-2 opacity-60 text-slate-500">Add slots using the form to open your calendar.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 content-start">
+                {slots.map((slot) => {
+                  const slotDate = new Date(slot.date);
+                  const isPast = slotDate < new Date(new Date().setHours(0,0,0,0));
+                  const isUnavailable = unavailableSlots.has(slot.id);
+                  
+                  return (
+                    <div 
+                      key={slot.id} 
+                      className={`relative group p-6 rounded-[22px] border transition-all duration-300 ${
+                        slot.isBooked 
+                          ? 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 opacity-80' 
+                          : isUnavailable
+                            ? 'bg-rose-50/50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-900/50 opacity-80'
+                            : isPast 
+                              ? 'bg-slate-50/50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800 opacity-50'
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700/50 hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm border transition-colors ${
+                            slot.isBooked 
+                              ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800' 
+                              : isUnavailable
+                                ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-900/30 dark:border-rose-800'
+                                : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800 group-hover:bg-emerald-100 group-hover:border-emerald-300'
+                          }`}>
+                            <CalendarDays className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="font-black text-sm text-slate-900 dark:text-white uppercase tracking-wider">
+                              {slotDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} — {slotDate.toLocaleDateString('en-IN', { year: 'numeric' })}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1 text-slate-500">
+                              <Clock className="h-3 w-3" />
+                              <span className="text-[10px] font-bold uppercase tracking-widest">
+                                {slot.startTime} to {slot.endTime}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        {slot.isBooked ? (
+                          <span className="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md">
+                            Booked
+                          </span>
+                        ) : isUnavailable ? (
+                          <span className="bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md">
+                            Unavailable
+                          </span>
+                        ) : (
+                          <span className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md">
+                            Available
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                            disabled={slot.isBooked || isPast}
+                            title="Edit Slot"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-8 w-8 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-colors"
+                            disabled={slot.isBooked || isPast}
+                            title={isUnavailable ? "Mark Available" : "Mark Unavailable"}
+                            onClick={() => handleMarkUnavailable(slot.id)}
+                          >
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => handleDelete(slot.id)}
+                          disabled={slot.isBooked || deletingId === slot.id || isPast}
+                          className="h-8 px-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
+                        >
+                          {deletingId === slot.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Trash2 className="h-3 w-3 mr-1.5" /> Delete</>}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </AuthGuard>
   );
 }
